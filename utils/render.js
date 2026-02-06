@@ -26,7 +26,7 @@ async function renderCompositionRaw(
   try {
     log(`渲染 ${comp} -> ${name}${durationSec ? ` (${durationSec}s)` : ""}`);
 
-    let cmd = `npx remotion render ${comp} "${out}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=angle --concurrency=${CONCURRENCY} --quiet`;
+    let cmd = `npx remotion render ${comp} "${out}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=vulkan --concurrency=${CONCURRENCY} --quiet`;
 
     if (durationSec) {
       const frames = Math.round(durationSec * FPS);
@@ -153,7 +153,7 @@ async function renderRankSegment(
     const frames = Math.round(durationSec * FPS);
 
     await execPromise(
-      `npx remotion render ${compName} "${rawPath}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=angle --concurrency=${CONCURRENCY} --frames=0-${frames - 1} --quiet`,
+      `npx remotion render ${compName} "${rawPath}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=vulkan --concurrency=${CONCURRENCY} --frames=0-${frames - 1} --quiet`,
     );
 
     if (fs.existsSync(rawPath)) {

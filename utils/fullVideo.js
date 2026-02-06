@@ -43,8 +43,7 @@ async function downloadFullVideo(bvid) {
     log(`下载完整视频: ${bvid}`);
     const url = `https://www.bilibili.com/video/${bvid}`;
 
-    // 下载720p完整视频
-    const cmd = `yt-dlp "${url}" -o "${outputPath}" --format "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best" --merge-output-format mp4 --force-overwrites --no-warnings`;
+    const cmd = `yt-dlp "${url}" -o "${outputPath}" --playlist-items 1 --format "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best" --merge-output-format mp4 --force-overwrites --no-warnings`;
 
     await execPromise(cmd);
 
