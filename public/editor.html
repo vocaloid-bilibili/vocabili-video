@@ -1,0 +1,1498 @@
+<!-- public/editor.html-->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>片段编辑器</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Microsoft YaHei", sans-serif;
+        background: #1a1a1a;
+        color: #fff;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Header */
+      header {
+        background: #252525;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+      header h1 {
+        font-size: 16px;
+        font-weight: 500;
+      }
+      .header-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .header-controls select {
+        background: #333;
+        color: #fff;
+        border: 1px solid #444;
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+      .btn {
+        padding: 6px 16px;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        border-radius: 4px;
+      }
+      .btn-primary {
+        background: #4a9eff;
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #3a8eef;
+      }
+      .btn-secondary {
+        background: #444;
+        color: #fff;
+      }
+      .btn-secondary:hover {
+        background: #555;
+      }
+      .btn-success {
+        background: #4a4;
+        color: #fff;
+      }
+      .btn-success:hover {
+        background: #5b5;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Main Layout */
+      main {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      /* Song List */
+      .song-list {
+        width: 320px;
+        min-width: 320px;
+        background: #222;
+        border-right: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .song-list-header {
+        padding: 12px;
+        background: #2a2a2a;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .song-list-header span {
+        font-size: 13px;
+        color: #999;
+      }
+      .song-list-body {
+        flex: 1;
+        overflow-y: auto;
+      }
+      .song-group-title {
+        padding: 8px 12px;
+        background: #1a1a1a;
+        font-size: 11px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: sticky;
+        top: 0;
+      }
+      .song-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid #2a2a2a;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .song-item:hover {
+        background: #2a2a2a;
+      }
+      .song-item.active {
+        background: #333;
+        border-left: 3px solid #4a9eff;
+      }
+      .song-item.has-clip {
+        border-left: 3px solid #4a4;
+      }
+      .song-item.active.has-clip {
+        border-left: 3px solid #4a9eff;
+      }
+      .song-rank {
+        width: 28px;
+        height: 28px;
+        background: #333;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .song-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .song-title {
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .song-meta {
+        font-size: 11px;
+        color: #666;
+        margin-top: 2px;
+      }
+      .song-status {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: #333;
+        color: #888;
+      }
+      .song-status.ready {
+        background: #1a3a1a;
+        color: #4a4;
+      }
+
+      /* Editor Panel  */
+      .editor-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #1a1a1a;
+        overflow: hidden;
+        min-width: 0;
+      }
+      .editor-empty {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+      }
+
+      /* Video Player */
+      .video-container {
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 380px;
+        min-height: 300px;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .video-container video {
+        max-width: 100%;
+        max-height: 100%;
+      }
+      .video-loading {
+        position: absolute;
+        color: #666;
+      }
+
+      /* Timeline - 修复溢出 */
+      .timeline-container {
+        padding: 16px 20px;
+        background: #222;
+        border-top: 1px solid #333;
+        flex-shrink: 0;
+        overflow: hidden; /* 关键 */
+      }
+      .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .timeline-info {
+        display: flex;
+        gap: 20px;
+        font-size: 12px;
+        color: #999;
+      }
+      .timeline-info span {
+        font-family: monospace;
+      }
+      .zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: #666;
+      }
+      .zoom-controls input[type="range"] {
+        width: 100px;
+        height: 4px;
+        background: #444;
+        border-radius: 2px;
+        cursor: pointer;
+      }
+
+      /* 时间线包装器 - 关键修复 */
+      .timeline-wrapper {
+        overflow-x: auto;
+        overflow-y: hidden;
+        margin-bottom: 8px;
+        width: 100%;
+        position: relative;
+      }
+
+      /* 时间线主体 - 增加高度 */
+      .timeline {
+        position: relative;
+        height: 100px; /* 增加高度 */
+        background: #333;
+        border-radius: 4px;
+        cursor: pointer;
+        /* 宽度由JS控制 */
+      }
+
+      .timeline-selection {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        background: rgba(74, 158, 255, 0.3);
+        pointer-events: none;
+      }
+      .timeline-playhead {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #ff4444;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .timeline-playhead::after {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: -5px;
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #ff4444;
+      }
+
+      /* 手柄样式 */
+      .timeline-handle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 16px;
+        cursor: ew-resize;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .timeline-handle::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: #4a9eff;
+      }
+      .timeline-handle.start::before {
+        left: 0;
+      }
+      .timeline-handle.end::before {
+        right: 0;
+      }
+      .timeline-handle::after {
+        content: "⋮⋮";
+        color: #fff;
+        font-size: 10px;
+        background: #4a9eff;
+        padding: 8px 2px;
+        border-radius: 2px;
+        position: relative;
+        z-index: 1;
+      }
+      .timeline-handle .handle-label {
+        position: absolute;
+        top: -22px;
+        font-size: 11px;
+        color: #4a9eff;
+        white-space: nowrap;
+        background: #222;
+        padding: 2px 6px;
+        border-radius: 2px;
+        font-family: monospace;
+      }
+      .timeline-handle.start .handle-label {
+        left: 0;
+      }
+      .timeline-handle.end .handle-label {
+        right: 0;
+      }
+
+      .timeline-ticks {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        pointer-events: none;
+      }
+      .timeline-tick {
+        position: absolute;
+        bottom: 0;
+        font-size: 10px;
+        color: #888;
+        transform: translateX(-50%);
+      }
+      .timeline-tick::before {
+        content: "";
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        width: 1px;
+        height: 8px;
+        background: #555;
+      }
+
+      /* Controls */
+      .editor-controls {
+        padding: 14px 20px;
+        background: #252525;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .control-group label {
+        font-size: 12px;
+        color: #999;
+      }
+      .control-group input[type="number"] {
+        width: 80px;
+        padding: 6px 8px;
+        background: #333;
+        border: 1px solid #444;
+        color: #fff;
+        font-size: 13px;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+      .control-group input:focus {
+        outline: none;
+        border-color: #4a9eff;
+      }
+      .duration-display {
+        padding: 6px 12px;
+        background: #333;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: monospace;
+        min-width: 70px;
+        text-align: center;
+      }
+      .duration-display.warning {
+        color: #f80;
+      }
+      .duration-display.error {
+        color: #f44;
+      }
+      .duration-display.ok {
+        color: #4a4;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .control-row {
+        width: 100%;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding-top: 10px;
+        border-top: 1px solid #333;
+        margin-top: 4px;
+      }
+
+      .help-text {
+        font-size: 10px;
+        color: #666;
+        padding: 8px 20px;
+        background: #1f1f1f;
+        border-top: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: #333;
+        border-radius: 4px;
+        font-size: 13px;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s;
+        z-index: 100;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast.success {
+        background: #1a3a1a;
+        color: #4a4;
+      }
+      .toast.error {
+        background: #3a1a1a;
+        color: #f44;
+      }
+
+      .kbd {
+        display: inline-block;
+        padding: 2px 6px;
+        background: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        font-size: 10px;
+        font-family: monospace;
+        margin: 0 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🎬 片段编辑器</h1>
+      <div class="header-controls">
+        <select id="dateSelect">
+          <option value="">选择日期...</option>
+        </select>
+        <button class="btn btn-secondary" id="downloadAllBtn" disabled>
+          下载全部视频
+        </button>
+        <button class="btn btn-primary" id="startSynthesisBtn" disabled>
+          开始合成
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <div class="song-list">
+        <div class="song-list-header">
+          <span>歌曲列表</span>
+          <span id="clipProgress">0/30</span>
+        </div>
+        <div class="song-list-body" id="songListBody">
+          <div style="padding: 40px; text-align: center; color: #666">
+            请先选择日期
+          </div>
+        </div>
+      </div>
+
+      <div class="editor-panel">
+        <div class="editor-empty" id="editorEmpty">
+          <span>选择一首歌曲开始编辑</span>
+        </div>
+
+        <div
+          id="editorContent"
+          style="
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+          "
+        >
+          <div class="video-container">
+            <video id="videoPlayer"></video>
+            <div class="video-loading" id="videoLoading">加载中...</div>
+          </div>
+
+          <div class="timeline-container">
+            <div class="timeline-header">
+              <div class="timeline-info">
+                <span>当前: <b id="currentTimeDisplay">00:00.00</b></span>
+                <span>选区: <b id="selectionRange">00:00 - 00:20</b></span>
+                <span>总长: <b id="totalDurationDisplay">--:--</b></span>
+              </div>
+              <div class="zoom-controls">
+                <span>缩放</span>
+                <input
+                  type="range"
+                  id="zoomSlider"
+                  min="1"
+                  max="10"
+                  step="0.5"
+                  value="1"
+                />
+                <span id="zoomLevel">1x</span>
+              </div>
+            </div>
+
+            <div class="timeline-wrapper" id="timelineWrapper">
+              <div class="timeline" id="timeline">
+                <div class="timeline-selection" id="timelineSelection"></div>
+                <div class="timeline-handle start" id="handleStart">
+                  <span class="handle-label" id="startLabel">00:00</span>
+                </div>
+                <div class="timeline-handle end" id="handleEnd">
+                  <span class="handle-label" id="endLabel">00:20</span>
+                </div>
+                <div class="timeline-playhead" id="playhead"></div>
+                <div class="timeline-ticks" id="timelineTicks"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="editor-controls">
+            <div class="control-group">
+              <label>开始</label>
+              <input type="number" id="startTimeInput" step="0.1" min="0" />
+              <button
+                class="btn btn-secondary"
+                style="padding: 4px 8px; font-size: 11px"
+                id="setStartBtn"
+                title="I"
+              >
+                ← 设起点
+              </button>
+            </div>
+            <div class="control-group">
+              <label>结束</label>
+              <input type="number" id="endTimeInput" step="0.1" min="0" />
+              <button
+                class="btn btn-secondary"
+                style="padding: 4px 8px; font-size: 11px"
+                id="setEndBtn"
+                title="O"
+              >
+                设终点 →
+              </button>
+            </div>
+            <div class="control-group">
+              <label>时长</label>
+              <div class="duration-display" id="durationDisplay">20.0s</div>
+            </div>
+
+            <div class="spacer"></div>
+
+            <button class="btn btn-secondary" id="autoAnalyzeBtn">
+              🔍 自动分析
+            </button>
+            <button class="btn btn-primary" id="saveClipBtn">💾 保存</button>
+
+            <div class="control-row">
+              <div class="control-group">
+                <label>快速时长</label>
+                <button
+                  class="btn btn-secondary"
+                  style="padding: 4px 8px; font-size: 11px"
+                  onclick="setDuration(15)"
+                >
+                  15s
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  style="padding: 4px 8px; font-size: 11px"
+                  onclick="setDuration(20)"
+                >
+                  20s
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  style="padding: 4px 8px; font-size: 11px"
+                  onclick="setDuration(25)"
+                >
+                  25s
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  style="padding: 4px 8px; font-size: 11px"
+                  onclick="setDuration(30)"
+                >
+                  30s
+                </button>
+              </div>
+              <div class="spacer"></div>
+              <button class="btn btn-success" id="previewBtn">
+                ▶ 预览片段
+              </button>
+              <button
+                class="btn btn-secondary"
+                id="stopPreviewBtn"
+                style="display: none"
+              >
+                ⏹ 停止
+              </button>
+            </div>
+          </div>
+
+          <div class="help-text">
+            快捷键: <span class="kbd">I</span> 设起点 |
+            <span class="kbd">O</span> 设终点 |
+            <span class="kbd">Space</span> 播放 |
+            <span class="kbd">P</span> 预览 |
+            <span class="kbd">Ctrl+S</span> 保存 | 滚轮缩放 | Shift+滚轮平移 |
+            左手柄：定长移动 | 右手柄：改变时长
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const API = "/api";
+      const API_KEY = localStorage.getItem("omo_api_key") || "";
+
+      let currentDate = "";
+      let songs = { newRank: [], mainRank: [] };
+      let currentSong = null;
+      let videoDuration = 0;
+      let zoomLevel = 1;
+      let clipDuration = 20;
+      let isPreviewMode = false;
+      let previewEndTime = 0;
+
+      async function fetchAPI(url, opts = {}) {
+        opts.headers = opts.headers || {};
+        opts.headers["x-api-key"] = API_KEY;
+        const res = await fetch(url, opts);
+        if (res.status === 401) {
+          location.href = "/";
+          throw new Error("Unauthorized");
+        }
+        return res.json();
+      }
+
+      function showToast(msg, type = "") {
+        const toast = document.getElementById("toast");
+        toast.textContent = msg;
+        toast.className = "toast show " + type;
+        setTimeout(() => toast.classList.remove("show"), 3000);
+      }
+
+      function formatTime(seconds, showMs = true) {
+        const m = Math.floor(seconds / 60);
+        const s = showMs ? (seconds % 60).toFixed(2) : Math.floor(seconds % 60);
+        return `${m.toString().padStart(2, "0")}:${s.toString().padStart(showMs ? 5 : 2, "0")}`;
+      }
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        await loadDates();
+        setupEventListeners();
+        setupKeyboardShortcuts();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const dateParam = urlParams.get("date");
+        if (dateParam) {
+          document.getElementById("dateSelect").value = dateParam;
+          onDateChange();
+        }
+      });
+
+      async function loadDates() {
+        try {
+          const { files } = await fetchAPI(`${API}/files`);
+          const select = document.getElementById("dateSelect");
+          files.forEach((f) => select.add(new Option(f.date, f.date)));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      function setupEventListeners() {
+        document
+          .getElementById("dateSelect")
+          .addEventListener("change", onDateChange);
+        document
+          .getElementById("downloadAllBtn")
+          .addEventListener("click", downloadAllVideos);
+        document
+          .getElementById("startSynthesisBtn")
+          .addEventListener("click", startSynthesis);
+        document
+          .getElementById("autoAnalyzeBtn")
+          .addEventListener("click", autoAnalyze);
+        document
+          .getElementById("previewBtn")
+          .addEventListener("click", previewClip);
+        document
+          .getElementById("stopPreviewBtn")
+          .addEventListener("click", stopPreview);
+        document
+          .getElementById("saveClipBtn")
+          .addEventListener("click", saveClip);
+        document
+          .getElementById("setStartBtn")
+          .addEventListener("click", setCurrentAsStart);
+        document
+          .getElementById("setEndBtn")
+          .addEventListener("click", setCurrentAsEnd);
+        document
+          .getElementById("startTimeInput")
+          .addEventListener("change", onStartInputChange);
+        document
+          .getElementById("endTimeInput")
+          .addEventListener("change", onEndInputChange);
+        document
+          .getElementById("zoomSlider")
+          .addEventListener("input", onZoomChange);
+        setupTimeline();
+      }
+
+      function setupKeyboardShortcuts() {
+        document.addEventListener("keydown", (e) => {
+          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
+            return;
+          const video = document.getElementById("videoPlayer");
+
+          switch (e.key.toLowerCase()) {
+            case "i":
+              e.preventDefault();
+              setCurrentAsStart();
+              break;
+            case "o":
+              e.preventDefault();
+              setCurrentAsEnd();
+              break;
+            case " ":
+              e.preventDefault();
+              if (video.paused) video.play();
+              else video.pause();
+              break;
+            case "p":
+              e.preventDefault();
+              if (isPreviewMode) stopPreview();
+              else previewClip();
+              break;
+            case "s":
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                saveClip();
+              }
+              break;
+          }
+        });
+      }
+
+      async function onDateChange() {
+        currentDate = document.getElementById("dateSelect").value;
+        if (!currentDate) return;
+
+        try {
+          const data = await fetchAPI(`${API}/songs/${currentDate}`);
+          songs = data.songs;
+          renderSongList();
+          updateClipProgress();
+          document.getElementById("downloadAllBtn").disabled = false;
+          document.getElementById("startSynthesisBtn").disabled = false;
+        } catch (e) {
+          showToast("加载失败: " + e.message, "error");
+        }
+      }
+
+      function renderSongList() {
+        const container = document.getElementById("songListBody");
+        const renderGroup = (list, title) => {
+          if (!list.length) return "";
+          return `
+          <div class="song-group-title">${title}</div>
+          ${list
+            .map(
+              (s) => `
+            <div class="song-item ${s._clip ? "has-clip" : ""}" data-bvid="${s.bvid}">
+              <div class="song-rank">${s.rank}</div>
+              <div class="song-info">
+                <div class="song-title">${s.title}</div>
+                <div class="song-meta">${s.author || s.vocal || "Unknown"}</div>
+              </div>
+              <div class="song-status ${s._videoExists ? "ready" : ""}">${s._videoExists ? "✓" : "○"}</div>
+            </div>
+          `,
+            )
+            .join("")}`;
+        };
+        container.innerHTML =
+          renderGroup(songs.newRank, "新曲榜 Top 10") +
+          renderGroup(songs.mainRank, "主榜 Top 20");
+        container.querySelectorAll(".song-item").forEach((el) => {
+          el.addEventListener("click", () => selectSong(el.dataset.bvid));
+        });
+      }
+
+      function updateClipProgress() {
+        const all = [...songs.newRank, ...songs.mainRank];
+        const clipped = all.filter((s) => s._clip).length;
+        document.getElementById("clipProgress").textContent =
+          `${clipped}/${all.length}`;
+      }
+
+      async function selectSong(bvid) {
+        document.querySelectorAll(".song-item").forEach((el) => {
+          el.classList.toggle("active", el.dataset.bvid === bvid);
+        });
+
+        currentSong = [...songs.newRank, ...songs.mainRank].find(
+          (s) => s.bvid === bvid,
+        );
+        if (!currentSong) return;
+
+        document.getElementById("editorEmpty").style.display = "none";
+        document.getElementById("editorContent").style.display = "flex";
+
+        const video = document.getElementById("videoPlayer");
+        const loading = document.getElementById("videoLoading");
+
+        if (!currentSong._videoExists) {
+          loading.textContent = "下载视频中...";
+          loading.style.display = "block";
+          video.style.display = "none";
+
+          try {
+            const result = await fetchAPI(`${API}/full-video/${bvid}`, {
+              method: "POST",
+            });
+            currentSong._videoUrl = result.url;
+            currentSong._videoExists = true;
+            videoDuration = result.duration;
+
+            const listItem = document.querySelector(
+              `.song-item[data-bvid="${bvid}"]`,
+            );
+            if (listItem) {
+              listItem.querySelector(".song-status").textContent = "✓";
+              listItem.querySelector(".song-status").classList.add("ready");
+            }
+          } catch (e) {
+            loading.textContent = "下载失败: " + e.message;
+            return;
+          }
+        }
+
+        video.src = currentSong._videoUrl;
+        video.style.display = "block";
+        loading.style.display = "none";
+
+        video.onloadedmetadata = () => {
+          videoDuration = video.duration;
+          document.getElementById("totalDurationDisplay").textContent =
+            formatTime(videoDuration, false);
+          zoomLevel = 1;
+          document.getElementById("zoomSlider").value = 1;
+          document.getElementById("zoomLevel").textContent = "1x";
+          updateTimelineWidth();
+          renderTimelineTicks();
+          loadClipSettings();
+        };
+      }
+
+      function loadClipSettings() {
+        if (!currentSong) return;
+        const clip = currentSong._clip;
+        let start = 0;
+
+        if (clip) {
+          start = clip.startTime;
+          clipDuration = clip.duration || 20;
+        } else {
+          clipDuration = 20;
+        }
+
+        document.getElementById("startTimeInput").value = start.toFixed(2);
+        document.getElementById("endTimeInput").value = (
+          start + clipDuration
+        ).toFixed(2);
+        updateDisplay();
+      }
+
+      function setCurrentAsStart() {
+        const video = document.getElementById("videoPlayer");
+        if (!video || videoDuration <= 0) return;
+
+        let start = video.currentTime;
+
+        let end = start + clipDuration;
+
+        if (end > videoDuration) {
+          end = videoDuration;
+          start = Math.max(0, end - clipDuration);
+        }
+
+        document.getElementById("startTimeInput").value = start.toFixed(2);
+        document.getElementById("endTimeInput").value = end.toFixed(2);
+        updateDisplay();
+        showToast(
+          `起点: ${formatTime(start)} (定长 ${clipDuration.toFixed(1)}s)`,
+          "success",
+        );
+      }
+
+      function setCurrentAsEnd() {
+        const video = document.getElementById("videoPlayer");
+        if (!video || videoDuration <= 0) return;
+
+        let end = video.currentTime;
+        const start =
+          parseFloat(document.getElementById("startTimeInput").value) || 0;
+
+        if (end <= start) {
+          const newStart = Math.max(0, end - clipDuration);
+          document.getElementById("startTimeInput").value = newStart.toFixed(2);
+        }
+
+        document.getElementById("endTimeInput").value = end.toFixed(2);
+        clipDuration =
+          end - parseFloat(document.getElementById("startTimeInput").value);
+        updateDisplay();
+        showToast(`终点: ${formatTime(end)}`, "success");
+      }
+
+      function onStartInputChange() {
+        let start =
+          parseFloat(document.getElementById("startTimeInput").value) || 0;
+        start = Math.max(0, Math.min(start, videoDuration - 5));
+        document.getElementById("startTimeInput").value = start.toFixed(2);
+
+        const end = parseFloat(document.getElementById("endTimeInput").value);
+        if (start >= end) {
+          document.getElementById("endTimeInput").value = Math.min(
+            start + clipDuration,
+            videoDuration,
+          ).toFixed(2);
+        }
+        clipDuration =
+          parseFloat(document.getElementById("endTimeInput").value) - start;
+        updateDisplay();
+      }
+
+      function onEndInputChange() {
+        const start =
+          parseFloat(document.getElementById("startTimeInput").value) || 0;
+        let end =
+          parseFloat(document.getElementById("endTimeInput").value) || 20;
+        end = Math.max(start + 5, Math.min(end, videoDuration));
+        clipDuration = end - start;
+        document.getElementById("endTimeInput").value = end.toFixed(2);
+        updateDisplay();
+      }
+
+      function updateDisplay() {
+        const start =
+          parseFloat(document.getElementById("startTimeInput").value) || 0;
+        const end =
+          parseFloat(document.getElementById("endTimeInput").value) || 20;
+        const duration = end - start;
+
+        const display = document.getElementById("durationDisplay");
+        display.textContent = duration.toFixed(1) + "s";
+        display.classList.remove("warning", "error", "ok");
+        if (duration < 15 || duration > 35) display.classList.add("error");
+        else if (duration >= 19 && duration <= 21) display.classList.add("ok");
+        else if (duration < 18 || duration > 25)
+          display.classList.add("warning");
+
+        document.getElementById("selectionRange").textContent =
+          `${formatTime(start, false)} - ${formatTime(end, false)}`;
+        document.getElementById("startLabel").textContent = formatTime(
+          start,
+          false,
+        );
+        document.getElementById("endLabel").textContent = formatTime(
+          end,
+          false,
+        );
+
+        updateTimelineSelection();
+      }
+
+      function setDuration(dur) {
+        const start =
+          parseFloat(document.getElementById("startTimeInput").value) || 0;
+        let end = start + dur;
+        if (end > videoDuration) {
+          end = videoDuration;
+          document.getElementById("startTimeInput").value = Math.max(
+            0,
+            end - dur,
+          ).toFixed(2);
+        }
+        clipDuration = dur;
+        document.getElementById("endTimeInput").value = end.toFixed(2);
+        updateDisplay();
+      }
+
+      // ========== 时间线相关 ==========
+
+      function updateTimelineWidth() {
+        const timeline = document.getElementById("timeline");
+        const wrapper = document.getElementById("timelineWrapper");
+        const baseWidth = wrapper.clientWidth || 600;
+        // 设置实际宽度，不用 min-width
+        timeline.style.width = Math.floor(baseWidth * zoomLevel) + "px";
+      }
+
+      function renderTimelineTicks() {
+        const ticks = document.getElementById("timelineTicks");
+        if (!videoDuration || videoDuration <= 0) return;
+
+        let interval = 30;
+        if (zoomLevel >= 2) interval = 15;
+        if (zoomLevel >= 4) interval = 10;
+        if (zoomLevel >= 6) interval = 5;
+        if (zoomLevel >= 8) interval = 2;
+
+        ticks.innerHTML = "";
+        for (let t = 0; t <= videoDuration; t += interval) {
+          const pct = (t / videoDuration) * 100;
+          const tick = document.createElement("span");
+          tick.className = "timeline-tick";
+          tick.style.left = pct + "%";
+          tick.textContent = formatTime(t, false);
+          ticks.appendChild(tick);
+        }
+      }
+
+      function updateTimelineSelection() {
+        if (!videoDuration || videoDuration <= 0) return;
+
+        const start =
+          parseFloat(document.getElementById("startTimeInput").value) || 0;
+        const end =
+          parseFloat(document.getElementById("endTimeInput").value) || 20;
+
+        const selection = document.getElementById("timelineSelection");
+        const handleStart = document.getElementById("handleStart");
+        const handleEnd = document.getElementById("handleEnd");
+
+        const startPct = (start / videoDuration) * 100;
+        const endPct = (end / videoDuration) * 100;
+
+        selection.style.left = startPct + "%";
+        selection.style.width = endPct - startPct + "%";
+
+        // 左手柄：左边缘对齐起点
+        handleStart.style.left = startPct + "%";
+        // 右手柄：右边缘对齐终点
+        handleEnd.style.left = `calc(${endPct}% - 16px)`;
+      }
+
+      function onZoomChange() {
+        const wrapper = document.getElementById("timelineWrapper");
+        const oldScrollRatio =
+          wrapper.scrollWidth > wrapper.clientWidth
+            ? (wrapper.scrollLeft + wrapper.clientWidth / 2) /
+              wrapper.scrollWidth
+            : 0.5;
+
+        zoomLevel = parseFloat(document.getElementById("zoomSlider").value);
+        document.getElementById("zoomLevel").textContent =
+          zoomLevel.toFixed(1) + "x";
+
+        updateTimelineWidth();
+        renderTimelineTicks();
+        updateTimelineSelection();
+
+        requestAnimationFrame(() => {
+          if (wrapper.scrollWidth > wrapper.clientWidth) {
+            const newCenter = wrapper.scrollWidth * oldScrollRatio;
+            wrapper.scrollLeft = Math.max(
+              0,
+              newCenter - wrapper.clientWidth / 2,
+            );
+          }
+        });
+      }
+
+      function setupTimeline() {
+        const video = document.getElementById("videoPlayer");
+        const timeline = document.getElementById("timeline");
+        const wrapper = document.getElementById("timelineWrapper");
+        const playhead = document.getElementById("playhead");
+        const handleStart = document.getElementById("handleStart");
+        const handleEnd = document.getElementById("handleEnd");
+
+        // 播放头更新
+        video.addEventListener("timeupdate", () => {
+          if (videoDuration > 0) {
+            const pct = (video.currentTime / videoDuration) * 100;
+            playhead.style.left = pct + "%";
+            document.getElementById("currentTimeDisplay").textContent =
+              formatTime(video.currentTime);
+
+            if (isPreviewMode && video.currentTime >= previewEndTime) {
+              video.pause();
+              video.currentTime = previewEndTime;
+              stopPreview();
+            }
+          }
+        });
+
+        // 点击跳转
+        timeline.addEventListener("click", (e) => {
+          if (e.target.closest(".timeline-handle")) return;
+          const rect = timeline.getBoundingClientRect();
+          const pct = (e.clientX - rect.left) / rect.width;
+          video.currentTime = Math.max(
+            0,
+            Math.min(pct * videoDuration, videoDuration),
+          );
+        });
+
+        // 中键/Alt+左键 拖动平移
+        let isDraggingTimeline = false;
+        let dragStartX = 0;
+        let scrollStart = 0;
+
+        wrapper.addEventListener("mousedown", (e) => {
+          if (e.target.closest(".timeline-handle")) return;
+          if (e.button === 1 || (e.button === 0 && e.altKey)) {
+            isDraggingTimeline = true;
+            dragStartX = e.clientX;
+            scrollStart = wrapper.scrollLeft;
+            wrapper.style.cursor = "grabbing";
+            e.preventDefault();
+          }
+        });
+
+        document.addEventListener("mousemove", (e) => {
+          if (isDraggingTimeline) {
+            wrapper.scrollLeft = scrollStart - (e.clientX - dragStartX);
+          }
+        });
+
+        document.addEventListener("mouseup", () => {
+          if (isDraggingTimeline) {
+            isDraggingTimeline = false;
+            wrapper.style.cursor = "";
+          }
+        });
+
+        // 滚轮：缩放或平移
+        wrapper.addEventListener(
+          "wheel",
+          (e) => {
+            e.preventDefault();
+
+            // Shift+滚轮 = 平移
+            if (e.shiftKey) {
+              wrapper.scrollLeft += e.deltaY;
+              return;
+            }
+
+            // 横向滚动 = 平移
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+              wrapper.scrollLeft += e.deltaX;
+              return;
+            }
+
+            // 普通滚轮 = 缩放
+            const slider = document.getElementById("zoomSlider");
+            const rect = wrapper.getBoundingClientRect();
+            const mouseXInWrapper = e.clientX - rect.left;
+            const mouseXInTimeline = mouseXInWrapper + wrapper.scrollLeft;
+            const mouseRatio =
+              wrapper.scrollWidth > 0
+                ? mouseXInTimeline / wrapper.scrollWidth
+                : 0;
+
+            // 关键修复：deltaY > 0 向下滚 = 缩小，deltaY < 0 向上滚 = 放大
+            const delta = e.deltaY < 0 ? 0.5 : -0.5;
+            let newZoom = zoomLevel + delta;
+            newZoom = Math.max(1, Math.min(10, newZoom));
+
+            if (newZoom === zoomLevel) return;
+
+            zoomLevel = newZoom;
+            slider.value = newZoom;
+            document.getElementById("zoomLevel").textContent =
+              zoomLevel.toFixed(1) + "x";
+
+            updateTimelineWidth();
+            renderTimelineTicks();
+            updateTimelineSelection();
+
+            requestAnimationFrame(() => {
+              const newMouseXInTimeline = wrapper.scrollWidth * mouseRatio;
+              wrapper.scrollLeft = Math.max(
+                0,
+                newMouseXInTimeline - mouseXInWrapper,
+              );
+            });
+          },
+          { passive: false },
+        );
+
+        // ========== 手柄拖动 ==========
+        let dragging = null;
+
+        const onHandleMouseMove = (e) => {
+          if (!dragging) return;
+          const rect = timeline.getBoundingClientRect();
+          let pct = (e.clientX - rect.left) / rect.width;
+          pct = Math.max(0, Math.min(1, pct));
+          const time = pct * videoDuration;
+
+          if (dragging === "start") {
+            // 【定长模式】：起点移动，终点跟着动，保持 clipDuration 不变
+            let newStart = Math.max(
+              0,
+              Math.min(time, videoDuration - clipDuration),
+            );
+            let newEnd = newStart + clipDuration;
+
+            // 确保不超出边界
+            if (newEnd > videoDuration) {
+              newEnd = videoDuration;
+              newStart = newEnd - clipDuration;
+            }
+
+            document.getElementById("startTimeInput").value =
+              newStart.toFixed(2);
+            document.getElementById("endTimeInput").value = newEnd.toFixed(2);
+          } else {
+            // 【变长模式】：只改终点，起点不动
+            const start = parseFloat(
+              document.getElementById("startTimeInput").value,
+            );
+            let newEnd = Math.max(start + 5, Math.min(time, videoDuration));
+            clipDuration = newEnd - start;
+            document.getElementById("endTimeInput").value = newEnd.toFixed(2);
+          }
+          updateDisplay();
+        };
+
+        const onHandleMouseUp = () => {
+          dragging = null;
+          document.removeEventListener("mousemove", onHandleMouseMove);
+          document.removeEventListener("mouseup", onHandleMouseUp);
+        };
+
+        handleStart.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          dragging = "start";
+          document.addEventListener("mousemove", onHandleMouseMove);
+          document.addEventListener("mouseup", onHandleMouseUp);
+        });
+
+        handleEnd.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          dragging = "end";
+          document.addEventListener("mousemove", onHandleMouseMove);
+          document.addEventListener("mouseup", onHandleMouseUp);
+        });
+      }
+
+      // ========== Actions ==========
+
+      async function autoAnalyze() {
+        if (!currentSong) return;
+        showToast("分析中...");
+        try {
+          const result = await fetchAPI(`${API}/analyze/${currentSong.bvid}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ duration: clipDuration }),
+          });
+
+          let start = result.start_time || 0;
+          if (start + clipDuration > videoDuration) {
+            start = Math.max(0, videoDuration - clipDuration);
+          }
+
+          document.getElementById("startTimeInput").value = start.toFixed(2);
+          document.getElementById("endTimeInput").value = (
+            start + clipDuration
+          ).toFixed(2);
+          updateDisplay();
+          document.getElementById("videoPlayer").currentTime = start;
+          showToast("分析完成", "success");
+        } catch (e) {
+          showToast("分析失败: " + e.message, "error");
+        }
+      }
+
+      function previewClip() {
+        const video = document.getElementById("videoPlayer");
+        const start =
+          parseFloat(document.getElementById("startTimeInput").value) || 0;
+        const end =
+          parseFloat(document.getElementById("endTimeInput").value) || 20;
+
+        isPreviewMode = true;
+        previewEndTime = end;
+        video.currentTime = start;
+        video.play();
+
+        document.getElementById("previewBtn").style.display = "none";
+        document.getElementById("stopPreviewBtn").style.display =
+          "inline-block";
+        showToast(
+          `预览 ${formatTime(start, false)} - ${formatTime(end, false)}`,
+        );
+      }
+
+      function stopPreview() {
+        document.getElementById("videoPlayer").pause();
+        isPreviewMode = false;
+        document.getElementById("previewBtn").style.display = "inline-block";
+        document.getElementById("stopPreviewBtn").style.display = "none";
+      }
+
+      async function saveClip() {
+        if (!currentSong) return;
+
+        const start = parseFloat(
+          document.getElementById("startTimeInput").value,
+        );
+        const end = parseFloat(document.getElementById("endTimeInput").value);
+        const duration = end - start;
+
+        if (duration < 15 || duration > 35) {
+          showToast("时长必须在 15-35 秒之间", "error");
+          return;
+        }
+
+        try {
+          await fetchAPI(`${API}/clips/${currentSong.bvid}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ startTime: start, endTime: end }),
+          });
+
+          currentSong._clip = { startTime: start, endTime: end, duration };
+          clipDuration = duration;
+
+          const listItem = document.querySelector(
+            `.song-item[data-bvid="${currentSong.bvid}"]`,
+          );
+          if (listItem) listItem.classList.add("has-clip");
+
+          updateClipProgress();
+          showToast("保存成功", "success");
+        } catch (e) {
+          showToast("保存失败: " + e.message, "error");
+        }
+      }
+
+      async function downloadAllVideos() {
+        const all = [...songs.newRank, ...songs.mainRank];
+        const toDownload = all
+          .filter((s) => !s._videoExists)
+          .map((s) => s.bvid);
+
+        if (toDownload.length === 0) {
+          showToast("所有视频已下载");
+          return;
+        }
+
+        showToast(`开始下载 ${toDownload.length} 个视频...`);
+        document.getElementById("downloadAllBtn").disabled = true;
+
+        try {
+          await fetchAPI(`${API}/full-video/batch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bvids: toDownload }),
+          });
+          showToast("下载任务已启动");
+
+          const checkInterval = setInterval(async () => {
+            try {
+              const data = await fetchAPI(`${API}/songs/${currentDate}`);
+              [...data.songs.newRank, ...data.songs.mainRank].forEach((s) => {
+                const listItem = document.querySelector(
+                  `.song-item[data-bvid="${s.bvid}"]`,
+                );
+                if (listItem && s._videoExists) {
+                  listItem.querySelector(".song-status").textContent = "✓";
+                  listItem.querySelector(".song-status").classList.add("ready");
+                }
+                const localSong = [...songs.newRank, ...songs.mainRank].find(
+                  (ls) => ls.bvid === s.bvid,
+                );
+                if (localSong) {
+                  localSong._videoExists = s._videoExists;
+                  localSong._videoUrl = s._videoUrl;
+                }
+              });
+
+              const allDownloaded = [
+                ...data.songs.newRank,
+                ...data.songs.mainRank,
+              ].every((s) => s._videoExists);
+              if (allDownloaded) {
+                clearInterval(checkInterval);
+                showToast("所有视频下载完成", "success");
+                document.getElementById("downloadAllBtn").disabled = false;
+              }
+            } catch (e) {}
+          }, 3000);
+
+          setTimeout(() => clearInterval(checkInterval), 120000);
+        } catch (e) {
+          showToast("下载失败: " + e.message, "error");
+        }
+
+        document.getElementById("downloadAllBtn").disabled = false;
+      }
+
+      async function startSynthesis() {
+        if (!currentDate) return;
+        if (!confirm("确认开始合成？")) return;
+
+        try {
+          await fetchAPI(`${API}/synthesis/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date: currentDate }),
+          });
+          showToast("合成任务已启动");
+          setTimeout(() => (location.href = "/"), 1000);
+        } catch (e) {
+          showToast("启动失败: " + e.message, "error");
+        }
+      }
+    </script>
+  </body>
+</html>
