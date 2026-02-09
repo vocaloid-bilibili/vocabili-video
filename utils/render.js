@@ -9,16 +9,16 @@ const { getCopyrightLabel } = require("./helpers");
 const FPS = 60;
 const CONCURRENCY = 4;
 
-// 渲染组件（不带淡入淡出）
-async function renderCompositionRaw(
+async function renderComposition(
   comp,
   props,
   name,
   dir,
   durationSec = null,
+  fadeDuration = 2,
 ) {
-  const out = path.join(dir, name);
-  if (fs.existsSync(out)) return out;
+  const finalPath = path.join(dir, name);
+  if (fs.existsSync(finalPath)) return finalPath;
 
   const temp = path.join(dir, `temp_props_${comp}_${Date.now()}.json`);
   fs.writeJsonSync(temp, props);
@@ -26,7 +26,7 @@ async function renderCompositionRaw(
   try {
     log(`渲染 ${comp} -> ${name}${durationSec ? ` (${durationSec}s)` : ""}`);
 
-    let cmd = `npx remotion render ${comp} "${out}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=vulkan --concurrency=${CONCURRENCY} --quiet`;
+    let cmd = `npx remotion render ${comp} "${finalPath}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=vulkan --concurrency=${CONCURRENCY} --quiet`;
 
     if (durationSec) {
       const frames = Math.round(durationSec * FPS);
@@ -34,7 +34,17 @@ async function renderCompositionRaw(
     }
 
     await execPromise(cmd);
-    return out;
+
+    if (fadeDuration > 0 && fs.existsSync(finalPath)) {
+      const tempFaded = finalPath.replace(".mp4", "_faded.mp4");
+      log(`添加淡入淡出: ${name}`);
+      await addAudioFade(finalPath, tempFaded, fadeDuration);
+      // 替换原文件
+      fs.removeSync(finalPath);
+      fs.renameSync(tempFaded, finalPath);
+    }
+
+    return finalPath;
   } catch (e) {
     log(`渲染失败 ${comp}: ${e.message}`);
     return null;
@@ -43,36 +53,18 @@ async function renderCompositionRaw(
   }
 }
 
-// 渲染组件（带1秒淡入淡出）
-async function renderComposition(comp, props, name, dir, durationSec = null) {
-  const finalPath = path.join(dir, name);
-  if (fs.existsSync(finalPath)) return finalPath;
-
-  const rawName = name.replace(".mp4", "_raw.mp4");
-  const rawPath = path.join(dir, rawName);
-
-  // 先渲染到临时文件
-  const rendered = await renderCompositionRaw(
-    comp,
-    props,
-    rawName,
-    dir,
-    durationSec,
-  );
-
-  if (rendered && fs.existsSync(rendered)) {
-    // 添加淡入淡出
-    log(`添加淡入淡出: ${name}`);
-    await addAudioFade(rendered, finalPath, 2);
-    // 删除临时文件
-    fs.removeSync(rendered);
-    return finalPath;
-  }
-
-  return null;
+// 渲染组件（不带淡入淡出）
+async function renderCompositionRaw(
+  comp,
+  props,
+  name,
+  dir,
+  durationSec = null,
+) {
+  return renderComposition(comp, props, name, dir, durationSec, 0);
 }
 
-// 渲染榜单片段（带淡入淡出）
+// 渲染榜单片段
 async function renderRankSegment(
   data,
   videoPath,
@@ -80,17 +72,12 @@ async function renderRankSegment(
   type,
   dir,
   durationSec = 20,
-  customFileName = null,
+  config = {},
 ) {
-  const baseName =
-    customFileName ||
-    `rank_${type}_${data.rank.toString().padStart(2, "0")}.mp4`;
+  const baseName = `rank_${type}_${data.rank.toString().padStart(3, "0")}.mp4`;
   const finalPath = path.join(dir, baseName);
 
   if (fs.existsSync(finalPath)) return finalPath;
-
-  const rawName = baseName.replace(".mp4", "_raw.mp4");
-  const rawPath = path.join(dir, rawName);
 
   const videoUrl = `http://localhost:${PORT}/downloads/${path.basename(videoPath)}`;
 
@@ -139,8 +126,12 @@ async function renderRankSegment(
     share: data.share,
     share_rank: data.share_rank,
     share_rate: data.shareR,
-    daily_trends: data.daily_trends,
     main_rank: data.main_rank,
+    showCount: config.showCount !== false,
+    trendKey: config.trendKey || "daily_trends",
+    trendCount: config.trendCount || 7,
+    [config.trendKey || "daily_trends"]:
+      data[config.trendKey || "daily_trends"] || data.daily_trends,
   };
 
   const temp = path.join(dir, `temp_props_rank_${type}_${data.rank}.json`);
@@ -153,18 +144,19 @@ async function renderRankSegment(
     const frames = Math.round(durationSec * FPS);
 
     await execPromise(
-      `npx remotion render ${compName} "${rawPath}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=vulkan --concurrency=${CONCURRENCY} --frames=0-${frames - 1} --quiet`,
+      `npx remotion render ${compName} "${finalPath}" --props="${temp}" --browser-executable="${CHROME_EXECUTABLE}" --gl=vulkan --concurrency=${CONCURRENCY} --frames=0-${frames - 1} --quiet`,
     );
 
-    if (fs.existsSync(rawPath)) {
-      // 添加淡入淡出
+    // 添加淡入淡出
+    if (config.audioFade !== false && fs.existsSync(finalPath)) {
+      const tempFaded = finalPath.replace(".mp4", "_faded.mp4");
       log(`添加淡入淡出: ${typeName} #${data.rank}`);
-      await addAudioFade(rawPath, finalPath, 2);
-      fs.removeSync(rawPath);
-      return finalPath;
+      await addAudioFade(finalPath, tempFaded, config.fadeDuration || 2);
+      fs.removeSync(finalPath);
+      fs.renameSync(tempFaded, finalPath);
     }
 
-    return null;
+    return finalPath;
   } catch (e) {
     log(`渲染失败 ${type} #${data.rank}: ${e.message}`);
     return null;
@@ -199,4 +191,9 @@ async function renderStill(
   }
 }
 
-module.exports = { renderComposition, renderRankSegment, renderStill };
+module.exports = {
+  renderComposition,
+  renderCompositionRaw,
+  renderRankSegment,
+  renderStill,
+};

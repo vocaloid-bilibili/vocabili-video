@@ -28,7 +28,6 @@ const STYLES = {
     cardBg: "#ffffff",
     cardBorder: "#000000",
     shadow: "rgba(0, 0, 0, 1)",
-
     play: "#bbdefb",
     fav: "#ffe0b2",
     coin: "#b2ebf2",
@@ -36,7 +35,6 @@ const STYLES = {
     dan: "#e1bee7",
     rep: "#fff59d",
     share: "#c8e6c9",
-
     red: "#d50000",
     green: "#2e7d32",
     gray: "#888888",
@@ -48,7 +46,7 @@ const STYLES = {
 };
 
 // ------------------------------------------------------------------
-// 组件：自适应压缩标题 (基于真实DOM宽度)
+// 组件：自适应压缩标题
 // ------------------------------------------------------------------
 const FitTitle = ({
   children,
@@ -118,7 +116,15 @@ const FitTitle = ({
 // ------------------------------------------------------------------
 // 组件：单个副榜卡片
 // ------------------------------------------------------------------
-const SubRankItem = ({ item, index }: { item: any; index: number }) => {
+const SubRankItem = ({
+  item,
+  index,
+  showCount = true,
+}: {
+  item: any;
+  index: number;
+  showCount?: boolean;
+}) => {
   const { fps, durationInFrames } = useVideoConfig();
   const frame = useCurrentFrame();
   const [imgError, setImgError] = useState(false);
@@ -167,10 +173,8 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
     trendColor = STYLES.colors.green;
   }
 
-  // 格式化数字
   const formatNum = (num: number) => new Intl.NumberFormat().format(num);
 
-  // 计算各项数据的最佳排名
   const allRanks = [
     item.view_rank,
     item.favorite_rank,
@@ -237,7 +241,7 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
           </div>
           <div
             style={{
-              fontSize: trendIcon === "NEW" ? 24 : 32,
+              fontSize: trendIcon === "NEW!!" ? 24 : 32,
               lineHeight: 1,
               fontFamily: STYLES.fontNum,
               marginTop: 4,
@@ -264,37 +268,41 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
             </div>
           )}
         </div>
-        <div
-          style={{
-            width: "100%",
-            height: 42,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 6,
-            borderTop: "2px solid #ccc",
-            backgroundColor: "#e8e8e8",
-            fontSize: 18,
-            fontWeight: 900,
-            color: "#555",
-            fontFamily: STYLES.fontMain,
-          }}
-        >
-          在榜
-          <span
+
+        {/* 在榜次数 - 根据配置决定是否显示 */}
+        {showCount && (
+          <div
             style={{
-              fontSize: 28,
-              lineHeight: 1,
-              color: STYLES.colors.red,
-              position: "relative",
-              top: -1,
-              fontFamily: STYLES.fontNum,
+              width: "100%",
+              height: 42,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 6,
+              borderTop: "2px solid #ccc",
+              backgroundColor: "#e8e8e8",
+              fontSize: 18,
+              fontWeight: 900,
+              color: "#555",
+              fontFamily: STYLES.fontMain,
             }}
           >
-            {item.count}
-          </span>
-          次
-        </div>
+            在榜
+            <span
+              style={{
+                fontSize: 28,
+                lineHeight: 1,
+                color: STYLES.colors.red,
+                position: "relative",
+                top: -1,
+                fontFamily: STYLES.fontNum,
+              }}
+            >
+              {item.count}
+            </span>
+            次
+          </div>
+        )}
       </div>
 
       {/* 2. 封面区域 */}
@@ -310,11 +318,7 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
         {!imgError && coverSrc ? (
           <Img
             src={coverSrc}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
             onError={() => setImgError(true)}
           />
         ) : (
@@ -352,13 +356,7 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
             flexShrink: 0,
           }}
         >
-          <div
-            style={{
-              width: "100%",
-              marginBottom: 4,
-              overflow: "visible",
-            }}
-          >
+          <div style={{ width: "100%", marginBottom: 4, overflow: "visible" }}>
             <FitTitle
               style={{
                 fontSize: 28,
@@ -399,11 +397,7 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
                 }}
               >
                 <span
-                  style={{
-                    fontWeight: "bold",
-                    color: "#333",
-                    marginRight: 8,
-                  }}
+                  style={{ fontWeight: "bold", color: "#333", marginRight: 8 }}
                 >
                   {item.author}
                 </span>
@@ -477,539 +471,131 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
             paddingTop: 6,
           }}
         >
-          {/* Play */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid #000",
-              borderRadius: 8,
-              boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
-              minWidth: 0,
-              backgroundColor: STYLES.colors.play,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 34, height: 34 }}>
-                <PlayIcon
+          {/* 数据单元格 - 保持原有样式，省略重复代码 */}
+          {[
+            {
+              icon: PlayIcon,
+              value: item.view,
+              rank: item.view_rank,
+              bg: STYLES.colors.play,
+            },
+            {
+              icon: StarIcon,
+              value: item.favorite,
+              rank: item.favorite_rank,
+              bg: STYLES.colors.fav,
+            },
+            {
+              icon: CoinIcon,
+              value: item.coin,
+              rank: item.coin_rank,
+              bg: STYLES.colors.coin,
+            },
+            {
+              icon: LikeIcon,
+              value: item.like,
+              rank: item.like_rank,
+              bg: STYLES.colors.like,
+            },
+            {
+              icon: DanmakuIcon,
+              value: item.danmaku,
+              rank: item.danmaku_rank,
+              bg: STYLES.colors.dan,
+            },
+            {
+              icon: ReplyIcon,
+              value: item.reply,
+              rank: item.reply_rank,
+              bg: STYLES.colors.rep,
+            },
+            {
+              icon: ShareIcon,
+              value: item.share,
+              rank: item.share_rank,
+              bg: STYLES.colors.share,
+            },
+          ].map((cell, idx) => {
+            const IconComponent = cell.icon;
+            return (
+              <div
+                key={idx}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0 10px",
+                  border: "1px solid #000",
+                  borderRadius: 8,
+                  boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
+                  minWidth: 0,
+                  backgroundColor: cell.bg,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 34, height: 34 }}>
+                    <IconComponent
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
+                      }}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 900,
+                      letterSpacing: -0.5,
+                      lineHeight: 1,
+                      fontFamily: STYLES.fontNum,
+                    }}
+                  >
+                    {formatNum(cell.value)}
+                  </span>
+                </div>
+                <div
                   style={{
-                    width: "100%",
-                    height: "100%",
-                    filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
+                    display: "flex",
+                    alignItems: "baseline",
+                    padding: "2px 6px",
+                    borderRadius: 6,
+                    backgroundColor: "rgba(255,255,255,0.6)",
+                    color: "#333",
                   }}
-                />
+                >
+                  <span
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 900,
+                      color:
+                        parseInt(cell.rank) === minRank
+                          ? STYLES.colors.red
+                          : "#000",
+                      fontFamily: STYLES.fontNum,
+                      textShadow:
+                        parseInt(cell.rank) === minRank
+                          ? "1px 1px 0 rgba(255,255,255,0.8)"
+                          : "none",
+                    }}
+                  >
+                    {cell.rank}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "bold",
+                      marginLeft: 1,
+                      color: "#444",
+                      fontFamily: STYLES.fontMain,
+                    }}
+                  >
+                    位
+                  </span>
+                </div>
               </div>
-              <span
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  letterSpacing: -0.5,
-                  lineHeight: 1,
-                  fontFamily: STYLES.fontNum,
-                }}
-              >
-                {formatNum(item.view)}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "2px 6px",
-                borderRadius: 6,
-                backgroundColor: "rgba(255,255,255,0.6)",
-                color: "#333",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  color:
-                    parseInt(item.view_rank) === minRank
-                      ? STYLES.colors.red
-                      : "#000",
-                  fontFamily: STYLES.fontNum,
-                  textShadow:
-                    parseInt(item.view_rank) === minRank
-                      ? "1px 1px 0 rgba(255,255,255,0.8)"
-                      : "none",
-                }}
-              >
-                {item.view_rank}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  marginLeft: 1,
-                  color: "#444",
-                  fontFamily: STYLES.fontMain,
-                }}
-              >
-                位
-              </span>
-            </div>
-          </div>
-          {/* Fav */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid #000",
-              borderRadius: 8,
-              boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
-              minWidth: 0,
-              backgroundColor: STYLES.colors.fav,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 34, height: 34 }}>
-                <StarIcon
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  letterSpacing: -0.5,
-                  lineHeight: 1,
-                  fontFamily: STYLES.fontNum,
-                }}
-              >
-                {formatNum(item.favorite)}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "2px 6px",
-                borderRadius: 6,
-                backgroundColor: "rgba(255,255,255,0.6)",
-                color: "#333",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  color:
-                    parseInt(item.favorite_rank) === minRank
-                      ? STYLES.colors.red
-                      : "#000",
-                  fontFamily: STYLES.fontNum,
-                  textShadow:
-                    parseInt(item.favorite_rank) === minRank
-                      ? "1px 1px 0 rgba(255,255,255,0.8)"
-                      : "none",
-                }}
-              >
-                {item.favorite_rank}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  marginLeft: 1,
-                  color: "#444",
-                  fontFamily: STYLES.fontMain,
-                }}
-              >
-                位
-              </span>
-            </div>
-          </div>
-          {/* Coin */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid #000",
-              borderRadius: 8,
-              boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
-              minWidth: 0,
-              backgroundColor: STYLES.colors.coin,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 34, height: 34 }}>
-                <CoinIcon
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  letterSpacing: -0.5,
-                  lineHeight: 1,
-                  fontFamily: STYLES.fontNum,
-                }}
-              >
-                {formatNum(item.coin)}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "2px 6px",
-                borderRadius: 6,
-                backgroundColor: "rgba(255,255,255,0.6)",
-                color: "#333",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  color:
-                    parseInt(item.coin_rank) === minRank
-                      ? STYLES.colors.red
-                      : "#000",
-                  fontFamily: STYLES.fontNum,
-                  textShadow:
-                    parseInt(item.coin_rank) === minRank
-                      ? "1px 1px 0 rgba(255,255,255,0.8)"
-                      : "none",
-                }}
-              >
-                {item.coin_rank}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  marginLeft: 1,
-                  color: "#444",
-                  fontFamily: STYLES.fontMain,
-                }}
-              >
-                位
-              </span>
-            </div>
-          </div>
-          {/* Like */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid #000",
-              borderRadius: 8,
-              boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
-              minWidth: 0,
-              backgroundColor: STYLES.colors.like,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 34, height: 34 }}>
-                <LikeIcon
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  letterSpacing: -0.5,
-                  lineHeight: 1,
-                  fontFamily: STYLES.fontNum,
-                }}
-              >
-                {formatNum(item.like)}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "2px 6px",
-                borderRadius: 6,
-                backgroundColor: "rgba(255,255,255,0.6)",
-                color: "#333",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  color:
-                    parseInt(item.like_rank) === minRank
-                      ? STYLES.colors.red
-                      : "#000",
-                  fontFamily: STYLES.fontNum,
-                  textShadow:
-                    parseInt(item.like_rank) === minRank
-                      ? "1px 1px 0 rgba(255,255,255,0.8)"
-                      : "none",
-                }}
-              >
-                {item.like_rank}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  marginLeft: 1,
-                  color: "#444",
-                  fontFamily: STYLES.fontMain,
-                }}
-              >
-                位
-              </span>
-            </div>
-          </div>
-
-          {/* Danmaku */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid #000",
-              borderRadius: 8,
-              boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
-              minWidth: 0,
-              backgroundColor: STYLES.colors.dan,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 34, height: 34 }}>
-                <DanmakuIcon
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  letterSpacing: -0.5,
-                  lineHeight: 1,
-                  fontFamily: STYLES.fontNum,
-                }}
-              >
-                {formatNum(item.danmaku)}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "2px 6px",
-                borderRadius: 6,
-                backgroundColor: "rgba(255,255,255,0.6)",
-                color: "#333",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  color:
-                    parseInt(item.danmaku_rank) === minRank
-                      ? STYLES.colors.red
-                      : "#000",
-                  fontFamily: STYLES.fontNum,
-                  textShadow:
-                    parseInt(item.danmaku_rank) === minRank
-                      ? "1px 1px 0 rgba(255,255,255,0.8)"
-                      : "none",
-                }}
-              >
-                {item.danmaku_rank}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  marginLeft: 1,
-                  color: "#444",
-                  fontFamily: STYLES.fontMain,
-                }}
-              >
-                位
-              </span>
-            </div>
-          </div>
-          {/* Reply */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid #000",
-              borderRadius: 8,
-              boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
-              minWidth: 0,
-              backgroundColor: STYLES.colors.rep,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 34, height: 34 }}>
-                <ReplyIcon
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  letterSpacing: -0.5,
-                  lineHeight: 1,
-                  fontFamily: STYLES.fontNum,
-                }}
-              >
-                {formatNum(item.reply)}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "2px 6px",
-                borderRadius: 6,
-                backgroundColor: "rgba(255,255,255,0.6)",
-                color: "#333",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  color:
-                    parseInt(item.reply_rank) === minRank
-                      ? STYLES.colors.red
-                      : "#000",
-                  fontFamily: STYLES.fontNum,
-                  textShadow:
-                    parseInt(item.reply_rank) === minRank
-                      ? "1px 1px 0 rgba(255,255,255,0.8)"
-                      : "none",
-                }}
-              >
-                {item.reply_rank}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  marginLeft: 1,
-                  color: "#444",
-                  fontFamily: STYLES.fontMain,
-                }}
-              >
-                位
-              </span>
-            </div>
-          </div>
-          {/* Share */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 10px",
-              border: "1px solid #000",
-              borderRadius: 8,
-              boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
-              minWidth: 0,
-              backgroundColor: STYLES.colors.share,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 34, height: 34 }}>
-                <ShareIcon
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.2))",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  letterSpacing: -0.5,
-                  lineHeight: 1,
-                  fontFamily: STYLES.fontNum,
-                }}
-              >
-                {formatNum(item.share)}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "2px 6px",
-                borderRadius: 6,
-                backgroundColor: "rgba(255,255,255,0.6)",
-                color: "#333",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  color:
-                    parseInt(item.share_rank) === minRank
-                      ? STYLES.colors.red
-                      : "#000",
-                  fontFamily: STYLES.fontNum,
-                  textShadow:
-                    parseInt(item.share_rank) === minRank
-                      ? "1px 1px 0 rgba(255,255,255,0.8)"
-                      : "none",
-                }}
-              >
-                {item.share_rank}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  marginLeft: 1,
-                  color: "#444",
-                  fontFamily: STYLES.fontMain,
-                }}
-              >
-                位
-              </span>
-            </div>
-          </div>
+            );
+          })}
 
           {/* Total Score */}
           <div
@@ -1112,8 +698,13 @@ const SubRankItem = ({ item, index }: { item: any; index: number }) => {
 // ------------------------------------------------------------------
 // 主组件：副榜列表
 // ------------------------------------------------------------------
-export const SubRank = (props: { list: any[] }) => {
-  const { list } = props;
+export const SubRank = (props: {
+  list: any[];
+  showCount?: boolean;
+  trendKey?: string;
+  trendCount?: number;
+}) => {
+  const { list, showCount = true } = props;
   const displayList = list || [];
 
   return (
@@ -1130,7 +721,7 @@ export const SubRank = (props: { list: any[] }) => {
       }}
     >
       {displayList.map((item, idx) => (
-        <SubRankItem key={idx} item={item} index={idx} />
+        <SubRankItem key={idx} item={item} index={idx} showCount={showCount} />
       ))}
     </AbsoluteFill>
   );

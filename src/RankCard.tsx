@@ -18,6 +18,7 @@ import {
   StarIcon,
   CoinIcon,
 } from "./Icons";
+
 const FitContent = ({
   children,
   style,
@@ -34,9 +35,7 @@ const FitContent = ({
     const content = contentRef.current;
     if (!container || !content) return;
 
-    // 先重置scale以获取真实宽度
     content.style.transform = "scaleX(1)";
-
     const availableWidth = container.clientWidth;
     const actualWidth = content.scrollWidth;
 
@@ -90,6 +89,7 @@ const FitContent = ({
     </div>
   );
 };
+
 // ------------------------------------------------------------------
 // 风格配置
 // ------------------------------------------------------------------
@@ -117,7 +117,7 @@ const STYLES = {
   fontNum: '"Arial Black", "Impact", sans-serif',
 };
 
-// 日刊趋势的7个颜色
+// 趋势颜色
 const TREND_COLORS = [
   STYLES.colors.blue,
   STYLES.colors.orange,
@@ -129,7 +129,7 @@ const TREND_COLORS = [
 ];
 
 // ------------------------------------------------------------------
-// 辅助函数：格式化数字为固定小数位
+// 辅助函数
 // ------------------------------------------------------------------
 const formatFix = (value: any, decimals: number = 2): string => {
   if (value === undefined || value === null || value === "") return "";
@@ -139,7 +139,7 @@ const formatFix = (value: any, decimals: number = 2): string => {
 };
 
 // ------------------------------------------------------------------
-// 组件：自适应压缩标题 (基于真实DOM宽度)
+// 组件：自适应压缩标题
 // ------------------------------------------------------------------
 const FitTitle = ({
   text,
@@ -170,12 +170,7 @@ const FitTitle = ({
   return (
     <div
       ref={containerRef}
-      style={{
-        width: "100%",
-        overflow: "hidden",
-        ...style,
-        display: "block",
-      }}
+      style={{ width: "100%", overflow: "hidden", ...style, display: "block" }}
     >
       <span
         ref={textRef}
@@ -192,17 +187,12 @@ const FitTitle = ({
   );
 };
 
-// 辅助函数：显示修正系数（固定2位小数）
+// 辅助组件：显示修正系数
 const FixLabel = ({ value }: { value: any }) => {
   if (value === undefined || value === null || value === "") return null;
   return (
     <span
-      style={{
-        fontSize: 20,
-        color: "#666",
-        marginLeft: 8,
-        fontWeight: "bold",
-      }}
+      style={{ fontSize: 20, color: "#666", marginLeft: 8, fontWeight: "bold" }}
     >
       (×{formatFix(value, 2)})
     </span>
@@ -210,9 +200,15 @@ const FixLabel = ({ value }: { value: any }) => {
 };
 
 // ------------------------------------------------------------------
-// 组件：日刊趋势条（无标题，紧凑版）
+// 组件：趋势条（支持日刊7天/周刊5周）
 // ------------------------------------------------------------------
-const DailyTrendBar = ({ trends }: { trends: Record<string, any> }) => {
+const TrendBar = ({
+  trends,
+  count = 7,
+}: {
+  trends: Record<string, any>;
+  count?: number;
+}) => {
   if (!trends) return null;
 
   return (
@@ -226,7 +222,8 @@ const DailyTrendBar = ({ trends }: { trends: Record<string, any> }) => {
         border: "2px solid rgba(0,0,0,0.3)",
       }}
     >
-      {[1, 2, 3, 4, 5, 6, 7].map((day, idx) => {
+      {Array.from({ length: count }, (_, idx) => {
+        const day = idx + 1;
         const value = trends[String(day)];
         const displayValue = value === "-" || value === undefined ? "-" : value;
 
@@ -235,16 +232,17 @@ const DailyTrendBar = ({ trends }: { trends: Record<string, any> }) => {
             key={day}
             style={{
               flex: 1,
-              backgroundColor: TREND_COLORS[idx],
+              backgroundColor: TREND_COLORS[idx % TREND_COLORS.length],
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRight: idx < 6 ? "1px solid rgba(0,0,0,0.15)" : "none",
+              borderRight:
+                idx < count - 1 ? "1px solid rgba(0,0,0,0.15)" : "none",
             }}
           >
             <span
               style={{
-                fontSize: 16,
+                fontSize: count > 5 ? 14 : 16,
                 fontWeight: 900,
                 fontFamily: STYLES.fontNum,
                 color: "#333",
@@ -261,7 +259,7 @@ const DailyTrendBar = ({ trends }: { trends: Record<string, any> }) => {
 };
 
 // ------------------------------------------------------------------
-// 组件：数据条（rate 显示2位小数）
+// 组件：数据条
 // ------------------------------------------------------------------
 const StatRow = ({
   icon,
@@ -463,10 +461,17 @@ export const RankCard = (props: any) => {
 
   const scoreStr = new Intl.NumberFormat().format(safeParse(props.score));
 
-  // ------------------- 业务逻辑判断 -------------------
+  // 配置参数
+  const showCount = props.showCount !== false;
+  const trendKey = props.trendKey || "daily_trends";
+  const trendCount = props.trendCount || 7;
+  const trendData =
+    props[trendKey] || props.daily_trends || props.weekly_trends;
+
+  // 业务逻辑判断
   const isNewSong = props.rank_before === "-" || props.rate === "NEW";
 
-  // ------------------- 计算各项数据的最佳排名 -------------------
+  // 计算各项数据的最佳排名
   const allRanks = [
     props.view_rank,
     props.favorite_rank,
@@ -481,7 +486,7 @@ export const RankCard = (props: any) => {
 
   const minRank = allRanks.length > 0 ? Math.min(...allRanks) : 0;
 
-  // ------------------- 动画逻辑 -------------------
+  // 动画逻辑
   const transitionFrames = 35;
 
   const volume = interpolate(
@@ -539,7 +544,7 @@ export const RankCard = (props: any) => {
   const sidebarTranslateX =
     frame < exitStartFrame ? sidebarEntranceX : sidebarExitX;
 
-  // ------------------- 排名UI 逻辑 -------------------
+  // 排名UI逻辑
   let rankDiffValue = 0;
   if (!isNewSong && props.rank_before) {
     rankDiffValue = Number(props.rank_before) - props.rank;
@@ -652,7 +657,6 @@ export const RankCard = (props: any) => {
               gap: 20,
             }}
           >
-            {/* 作者 - flex:1 自动填充剩余空间 */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <FitTitle
                 text={props.producers}
@@ -664,7 +668,6 @@ export const RankCard = (props: any) => {
               />
             </div>
 
-            {/* 成就 - 固定宽度不压缩 */}
             {props.honor && props.honor.length > 0 && (
               <div
                 style={{
@@ -691,7 +694,6 @@ export const RankCard = (props: any) => {
               gap: 20,
             }}
           >
-            {/* 歌手+引擎 - flex:1 自动填充剩余空间 */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <FitContent>
                 <span
@@ -728,7 +730,6 @@ export const RankCard = (props: any) => {
               </FitContent>
             </div>
 
-            {/* 标签行 - 固定宽度不压缩 */}
             <div
               style={{
                 display: "flex",
@@ -737,7 +738,10 @@ export const RankCard = (props: any) => {
                 flexShrink: 0,
               }}
             >
-              <InfoTag text={props.pubdate.split(" ")[0]} color="#fff9c4" />
+              <InfoTag
+                text={props.pubdate?.split(" ")[0] || ""}
+                color="#fff9c4"
+              />
               <InfoTag text={props.songType} color="#e1bee7" />
               <InfoTag
                 text={props.copyrightLabel}
@@ -776,7 +780,7 @@ export const RankCard = (props: any) => {
             marginBottom: 16,
           }}
         >
-          {/* 第一行：排名 + 趋势（包含日刊趋势） */}
+          {/* 第一行：排名 + 趋势 */}
           <div
             style={{
               display: "flex",
@@ -839,7 +843,7 @@ export const RankCard = (props: any) => {
                   {props.rank}
                 </div>
 
-                {props.count >= 1 && (
+                {showCount && props.count >= 1 && (
                   <div
                     style={{
                       display: "flex",
@@ -902,7 +906,7 @@ export const RankCard = (props: any) => {
               </div>
             </div>
 
-            {/* 右块：趋势与上周对比 + 日刊趋势 */}
+            {/* 右块：趋势与上周对比 */}
             <div
               style={{
                 flex: 5,
@@ -1119,10 +1123,10 @@ export const RankCard = (props: any) => {
                 )}
               </div>
 
-              {/* 下部：日刊趋势（无标题） */}
-              {props.daily_trends && (
+              {/* 下部：趋势条 */}
+              {trendData && (
                 <div style={{ padding: "0 8px 8px 8px" }}>
-                  <DailyTrendBar trends={props.daily_trends} />
+                  <TrendBar trends={trendData} count={trendCount} />
                 </div>
               )}
             </div>
@@ -1167,7 +1171,6 @@ export const RankCard = (props: any) => {
                 综合得分
               </span>
 
-              {/* 得分变化：新曲显示NEW，非新曲计算变化率 */}
               {isNewSong ? (
                 <div
                   style={{
@@ -1229,7 +1232,6 @@ export const RankCard = (props: any) => {
                 })()
               ) : null}
 
-              {/* fixB * fixC 保持4位小数 */}
               {props.fixB && props.fixC && (
                 <span
                   style={{
@@ -1247,7 +1249,6 @@ export const RankCard = (props: any) => {
               )}
             </div>
 
-            {/* 底部：上期得分 → 当前得分 */}
             <div
               style={{
                 display: "flex",
@@ -1256,7 +1257,6 @@ export const RankCard = (props: any) => {
                 overflow: "hidden",
               }}
             >
-              {/* 上期得分（非新曲时显示，用 FitContent 压缩） */}
               {!isNewSong &&
                 props.point_before &&
                 props.point_before !== "-" && (
@@ -1264,7 +1264,7 @@ export const RankCard = (props: any) => {
                     style={{
                       flex: "0 1 auto",
                       minWidth: 1,
-                      maxWidth: "80%", // 最多占45%宽度，给当前得分留空间
+                      maxWidth: "80%",
                       overflow: "hidden",
                       marginRight: 8,
                     }}
@@ -1297,7 +1297,6 @@ export const RankCard = (props: any) => {
                   </div>
                 )}
 
-              {/* 当前得分（固定不压缩） */}
               <span
                 style={{
                   fontSize: 42,

@@ -1,4 +1,4 @@
-<!-- public/index.html-->
+<!-- public/index.html -->
 <!doctype html>
 <html lang="zh-CN">
   <head>
@@ -124,6 +124,7 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        border-radius: 8px;
       }
       .panel-header {
         padding: 12px 16px;
@@ -145,11 +146,11 @@
 
       /* Column sizing */
       .col-files {
-        width: 280px;
+        width: 300px;
         flex-shrink: 0;
       }
       .col-segments {
-        width: 320px;
+        width: 340px;
         flex-shrink: 0;
       }
       .col-status {
@@ -159,18 +160,30 @@
         gap: 16px;
       }
 
-      /* Upload */
+      /* Upload - 改进样式 */
       .upload-area {
-        border: 1px dashed #ccc;
-        padding: 20px;
+        border: 2px dashed #ccc;
+        padding: 24px 16px;
         text-align: center;
         cursor: pointer;
         margin-bottom: 12px;
         position: relative;
+        border-radius: 8px;
+        transition: all 0.2s;
+        background: #fafafa;
       }
       .upload-area:hover {
-        border-color: #999;
-        background: #fafafa;
+        border-color: #4a9eff;
+        background: #f0f7ff;
+      }
+      .upload-area.dragover {
+        border-color: #4a9eff;
+        background: #e8f4ff;
+        transform: scale(1.02);
+      }
+      .upload-area.uploading {
+        pointer-events: none;
+        opacity: 0.7;
       }
       .upload-area input {
         position: absolute;
@@ -178,37 +191,67 @@
         opacity: 0;
         cursor: pointer;
       }
+      .upload-area .upload-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+      }
       .upload-area p {
+        font-size: 13px;
+        color: #666;
+        margin: 0;
+      }
+      .upload-area .upload-hint {
+        font-size: 11px;
+        color: #999;
+        margin-top: 4px;
+      }
+      .upload-progress {
+        margin-top: 8px;
         font-size: 12px;
-        color: #888;
+        color: #4a9eff;
+        display: none;
+      }
+      .upload-area.uploading .upload-progress {
+        display: block;
       }
 
       /* Buttons */
       .btn {
-        padding: 6px 12px;
-        border: 1px solid #ccc;
+        padding: 8px 14px;
+        border: 1px solid #ddd;
         background: #fff;
         cursor: pointer;
         font-size: 12px;
         color: #333;
+        border-radius: 6px;
+        transition: all 0.15s;
       }
       .btn:hover {
         background: #f5f5f5;
+        border-color: #ccc;
       }
       .btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
       .btn-primary {
-        background: #333;
+        background: #4a9eff;
         color: #fff;
-        border-color: #333;
+        border-color: #4a9eff;
       }
       .btn-primary:hover {
-        background: #000;
+        background: #3a8eef;
+      }
+      .btn-success {
+        background: #52c41a;
+        color: #fff;
+        border-color: #52c41a;
+      }
+      .btn-success:hover {
+        background: #45a716;
       }
       .btn-sm {
-        padding: 4px 8px;
+        padding: 5px 10px;
         font-size: 11px;
       }
       .btn-block {
@@ -218,39 +261,60 @@
       /* File List */
       .file-item {
         border: 1px solid #eee;
-        padding: 12px;
-        margin-bottom: 8px;
+        padding: 14px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        transition: all 0.15s;
       }
       .file-item:hover {
         border-color: #ccc;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
       }
       .file-item-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
       .file-item-date {
         font-weight: 600;
-        font-size: 14px;
+        font-size: 15px;
+      }
+      .file-item-tags {
+        display: flex;
+        gap: 4px;
       }
       .file-item-tag {
         font-size: 10px;
-        padding: 2px 6px;
+        padding: 3px 8px;
         background: #eee;
         color: #666;
+        border-radius: 4px;
+        font-weight: 500;
+      }
+      .file-item-tag.weekly {
+        background: #e3f2fd;
+        color: #1565c0;
+      }
+      .file-item-tag.monthly {
+        background: #fce4ec;
+        color: #c2185b;
+      }
+      .file-item-tag.special {
+        background: #fff3e0;
+        color: #e65100;
       }
       .file-item-tag.ok {
-        background: #d4edda;
-        color: #155724;
+        background: #e8f5e9;
+        color: #2e7d32;
       }
       .file-item-tag.warn {
-        background: #fff3cd;
-        color: #856404;
+        background: #fff8e1;
+        color: #f57c00;
       }
       .file-item-actions {
         display: flex;
-        gap: 6px;
+        gap: 8px;
       }
       .file-item-actions .btn {
         flex: 1;
@@ -259,14 +323,15 @@
         display: block;
         text-align: center;
         font-size: 11px;
-        color: #666;
-        margin-top: 8px;
-        padding-top: 8px;
+        color: #52c41a;
+        margin-top: 10px;
+        padding-top: 10px;
         border-top: 1px solid #eee;
         text-decoration: none;
+        font-weight: 500;
       }
       .file-item-download:hover {
-        color: #333;
+        color: #45a716;
       }
 
       /* Segment List */
@@ -275,21 +340,23 @@
       }
       .segment-controls select {
         width: 100%;
-        padding: 8px;
-        border: 1px solid #ccc;
+        padding: 10px;
+        border: 1px solid #ddd;
         font-size: 13px;
         margin-bottom: 8px;
+        border-radius: 6px;
       }
       .segment-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 8px;
+        padding: 10px 8px;
         border-bottom: 1px solid #f0f0f0;
         font-size: 12px;
+        border-radius: 4px;
       }
       .segment-item:hover {
-        background: #fafafa;
+        background: #f5f5f5;
       }
       .segment-name {
         font-family: Consolas, monospace;
@@ -302,17 +369,19 @@
       }
       .segment-actions {
         display: flex;
-        gap: 4px;
-        opacity: 0.5;
+        gap: 6px;
+        opacity: 0;
+        transition: opacity 0.15s;
       }
       .segment-item:hover .segment-actions {
         opacity: 1;
       }
       .segment-actions a,
       .segment-actions button {
-        padding: 4px;
-        background: none;
-        border: none;
+        padding: 4px 8px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
         cursor: pointer;
         color: #666;
         font-size: 11px;
@@ -320,7 +389,8 @@
       }
       .segment-actions a:hover,
       .segment-actions button:hover {
-        color: #000;
+        background: #eee;
+        color: #333;
       }
 
       /* Status Card */
@@ -345,22 +415,23 @@
       }
       .status-badge {
         font-size: 10px;
-        padding: 4px 8px;
+        padding: 4px 10px;
         background: #eee;
         color: #666;
         font-weight: 600;
+        border-radius: 4px;
       }
       .status-badge.running {
-        background: #cce5ff;
-        color: #004085;
+        background: #e3f2fd;
+        color: #1565c0;
       }
       .status-badge.done {
-        background: #d4edda;
-        color: #155724;
+        background: #e8f5e9;
+        color: #2e7d32;
       }
       .status-badge.error {
-        background: #f8d7da;
-        color: #721c24;
+        background: #ffebee;
+        color: #c62828;
       }
       .progress-info {
         display: flex;
@@ -370,15 +441,17 @@
         margin-bottom: 6px;
       }
       .progress-bar {
-        height: 6px;
+        height: 8px;
         background: #eee;
         overflow: hidden;
+        border-radius: 4px;
       }
       .progress-fill {
         height: 100%;
-        background: #333;
+        background: linear-gradient(90deg, #4a9eff, #52c41a);
         width: 0%;
         transition: width 0.3s;
+        border-radius: 4px;
       }
 
       /* Log Terminal */
@@ -388,9 +461,10 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        border-radius: 8px;
       }
       .terminal-header {
-        padding: 8px 12px;
+        padding: 10px 14px;
         background: #252525;
         border-bottom: 1px solid #333;
         display: flex;
@@ -410,9 +484,12 @@
         font-size: 10px;
         cursor: pointer;
         text-transform: uppercase;
+        padding: 4px 8px;
+        border-radius: 4px;
       }
       .terminal-header button:hover {
         color: #fff;
+        background: #333;
       }
       .terminal-body {
         flex: 1;
@@ -431,6 +508,7 @@
       }
       .terminal-body::-webkit-scrollbar-thumb {
         background: #444;
+        border-radius: 3px;
       }
       .log-line {
         margin-bottom: 2px;
@@ -440,43 +518,45 @@
         margin-right: 8px;
       }
       .log-error {
-        color: #f66;
+        color: #ff6b6b;
       }
       .log-success {
-        color: #6c6;
+        color: #69db7c;
       }
       .log-skip {
-        color: #cc6;
+        color: #ffd43b;
       }
       .log-info {
-        color: #6cf;
+        color: #74c0fc;
       }
 
       /* Dialog */
       dialog {
-        border: 1px solid #ddd;
+        border: none;
         padding: 0;
-        max-width: 360px;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 400px;
       }
       dialog::backdrop {
-        background: rgba(0, 0, 0, 0.3);
+        background: rgba(0, 0, 0, 0.5);
       }
       .dialog-content {
-        padding: 20px;
+        padding: 24px;
       }
       .dialog-content h3 {
-        font-size: 14px;
+        font-size: 16px;
         margin-bottom: 12px;
       }
       .dialog-content p {
-        font-size: 12px;
+        font-size: 13px;
         color: #666;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
       }
       .dialog-actions {
         display: flex;
         justify-content: flex-end;
-        gap: 8px;
+        gap: 10px;
       }
 
       /* Empty state */
@@ -491,13 +571,43 @@
       .icon-btn {
         background: none;
         border: none;
-        padding: 4px;
+        padding: 6px;
         cursor: pointer;
         color: #999;
         line-height: 1;
+        border-radius: 4px;
+        font-size: 14px;
       }
       .icon-btn:hover {
         color: #333;
+        background: #f0f0f0;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: #333;
+        color: #fff;
+        border-radius: 8px;
+        font-size: 13px;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s;
+        z-index: 100;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast.success {
+        background: #52c41a;
+      }
+      .toast.error {
+        background: #ff4d4f;
       }
     </style>
   </head>
@@ -530,28 +640,14 @@
           <button class="icon-btn" onclick="loadFiles()" title="刷新">↻</button>
         </div>
         <div class="panel-body">
-          <!-- Upload -->
-          <div class="upload-area">
+          <div class="upload-area" id="uploadArea">
             <input type="file" id="fileInput" multiple accept=".json" />
-            <p>点击或拖拽 JSON 文件</p>
-          </div>
-          <button
-            class="btn btn-primary btn-block"
-            onclick="uploadFiles()"
-            id="uploadBtn"
-          >
-            上传
-          </button>
 
-          <div
-            style="
-              margin-top: 16px;
-              border-top: 1px solid #eee;
-              padding-top: 12px;
-            "
-          >
-            <div id="fileList"><div class="empty">加载中...</div></div>
+            <p>点击或拖拽 JSON 文件</p>
+            <div class="upload-progress" id="uploadProgress">上传中...</div>
           </div>
+
+          <div id="fileList"><div class="empty">加载中...</div></div>
         </div>
       </div>
 
@@ -563,27 +659,13 @@
         <div class="panel-body">
           <div class="segment-controls">
             <select id="segmentDateSelect" onchange="loadSegments()">
-              <option value="">选择日期</option>
+              <option value="">选择日期查看分片...</option>
             </select>
-            <div style="position: relative">
-              <input
-                type="file"
-                id="segUploadInput"
-                accept=".mp4"
-                style="
-                  position: absolute;
-                  inset: 0;
-                  opacity: 0;
-                  cursor: pointer;
-                "
-              />
-              <button class="btn btn-block btn-sm">上传替换分片</button>
-            </div>
+            <!-- 删除上传替换分片的按钮 -->
           </div>
           <div id="segmentList"><div class="empty">请选择日期</div></div>
         </div>
       </div>
-
       <!-- Status Column -->
       <div class="col-status">
         <!-- Status Card -->
@@ -636,12 +718,23 @@
       </div>
     </dialog>
 
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
     <script>
       const API = "/api";
       let API_KEY = localStorage.getItem("omo_api_key") || "";
       let selectedDate = "";
       let repairTargetFile = null;
       let pollingInterval = null;
+
+      // Toast
+      function showToast(msg, type = "") {
+        const toast = document.getElementById("toast");
+        toast.textContent = msg;
+        toast.className = "toast show " + type;
+        setTimeout(() => toast.classList.remove("show"), 3000);
+      }
 
       // Auth
       function attemptLogin() {
@@ -680,41 +773,72 @@
             if (e.key === "Enter") attemptLogin();
           });
 
+        // 改进：文件选择后自动上传
         document
-          .getElementById("segUploadInput")
+          .getElementById("fileInput")
           .addEventListener("change", async (e) => {
-            const file = e.target.files[0];
-            if (!file || !selectedDate) {
-              alert("请先选择日期");
-              e.target.value = "";
-              return;
+            if (e.target.files.length > 0) {
+              await uploadFiles();
             }
-            if (!confirm(`上传 ${file.name} 到 ${selectedDate}?`)) {
-              e.target.value = "";
-              return;
-            }
-            const fd = new FormData();
-            fd.append("file", file);
-            fd.append("date", selectedDate);
-            try {
-              const res = await fetchWithAuth(`${API}/segment/upload`, {
-                method: "POST",
-                body: fd,
-              });
-              const d = await res.json();
-              if (d.error) throw new Error(d.error);
-              alert("上传成功");
-              loadSegments();
-            } catch (err) {
-              alert("上传失败: " + err.message);
-            }
-            e.target.value = "";
           });
-      });
 
+        // 拖拽上传支持
+        const uploadArea = document.getElementById("uploadArea");
+
+        uploadArea.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          uploadArea.classList.add("dragover");
+        });
+
+        uploadArea.addEventListener("dragleave", () => {
+          uploadArea.classList.remove("dragover");
+        });
+
+        uploadArea.addEventListener("drop", async (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove("dragover");
+
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            document.getElementById("fileInput").files = files;
+            await uploadFiles();
+          }
+        });
+      });
       function initApp() {
         loadFiles();
         startPolling();
+      }
+
+      // 改进：自动上传
+      async function uploadFiles() {
+        const input = document.getElementById("fileInput");
+        const uploadArea = document.getElementById("uploadArea");
+
+        if (input.files.length === 0) return;
+
+        uploadArea.classList.add("uploading");
+        const progressEl = document.getElementById("uploadProgress");
+        progressEl.textContent = `上传中... (${input.files.length} 个文件)`;
+
+        const fd = new FormData();
+        for (const f of input.files) fd.append("files", f);
+
+        try {
+          const res = await fetchWithAuth(`${API}/upload`, {
+            method: "POST",
+            body: fd,
+          });
+          if (!res.ok) throw new Error("上传失败");
+          const data = await res.json();
+          showToast(`上传成功: ${data.files.join(", ")}`, "success");
+          loadFiles();
+        } catch (e) {
+          showToast(e.message, "error");
+        } finally {
+          uploadArea.classList.remove("uploading");
+          input.value = "";
+        }
       }
 
       // Load Files
@@ -728,30 +852,35 @@
           const selectEl = document.getElementById("segmentDateSelect");
           const oldVal = selectEl.value;
 
-          selectEl.innerHTML = '<option value="">选择日期</option>';
-          files.forEach((f) => selectEl.add(new Option(f.date, f.date)));
+          selectEl.innerHTML = '<option value="">选择日期查看分片...</option>';
+          files.forEach((f) =>
+            selectEl.add(new Option(`${f.date} (${f.issueTypeName})`, f.date)),
+          );
           selectEl.value = oldVal;
 
           if (files.length === 0) {
-            listEl.innerHTML = '<div class="empty">暂无数据</div>';
+            listEl.innerHTML = '<div class="empty">暂无数据文件</div>';
             return;
           }
 
           listEl.innerHTML = files
             .map(
               (f) => `
-            <div class="file-item">
-              <div class="file-item-header">
-                <span class="file-item-date">${f.date}</span>
-                <span class="file-item-tag ${f.infoFile ? "ok" : "warn"}">${f.infoFile ? "完整" : "缺Info"}</span>
+              <div class="file-item">
+                <div class="file-item-header">
+                  <span class="file-item-date">${f.date}</span>
+                  <div class="file-item-tags">
+                    <span class="file-item-tag ${f.issueType}">${f.issueTypeName}</span>
+                    <span class="file-item-tag ${f.infoFile ? "ok" : "warn"}">${f.infoFile ? "完整" : "缺Info"}</span>
+                  </div>
+                </div>
+                <div class="file-item-actions">
+                  <button class="btn btn-sm" onclick="triggerAction('merge','${f.date}')">仅合并</button>
+                  <button class="btn btn-sm btn-primary" onclick="triggerAction('start','${f.date}')">编辑合成</button>
+                </div>
+                ${f.hasVideo ? `<a class="file-item-download" href="/video/${f.date}/${f.date}.mp4" target="_blank">下载视频</a>` : ""}
               </div>
-              <div class="file-item-actions">
-                <button class="btn btn-sm" onclick="triggerAction('merge','${f.date}')">合并</button>
-                <button class="btn btn-sm btn-primary" onclick="triggerAction('start','${f.date}')">编辑并合成</button>
-              </div>
-              ${f.hasVideo ? `<a class="file-item-download" href="/video/${f.date}/final_ranking.mp4" target="_blank">下载视频</a>` : ""}
-            </div>
-          `,
+            `,
             )
             .join("");
         } catch (e) {
@@ -784,14 +913,14 @@
           container.innerHTML = segments
             .map(
               (s) => `
-            <div class="segment-item">
-              <span class="segment-name" title="${s}">${s}</span>
-              <div class="segment-actions">
-                <a href="/video/${date}/segments/${s}" download title="下载">↓</a>
-                <button onclick="openRepair('${s}')" title="重绘">↻</button>
+              <div class="segment-item">
+                <span class="segment-name" title="${s}">${s}</span>
+                <div class="segment-actions">
+                  <a href="/video/${date}/segments/${s}" download title="下载">↓</a>
+                  <button onclick="openRepair('${s}')" title="重绘">↻</button>
+                </div>
               </div>
-            </div>
-          `,
+            `,
             )
             .join("");
         } catch (e) {
@@ -828,9 +957,9 @@
           });
           const d = await res.json();
           if (d.error) throw new Error(d.error);
-          alert("指令已发送");
+          showToast("指令已发送", "success");
         } catch (e) {
-          alert("失败: " + e.message);
+          showToast("失败: " + e.message, "error");
         }
       }
 
@@ -840,47 +969,19 @@
           return;
         }
 
-        const url = `${API}/synthesis/merge`;
         if (!confirm("确认合并?")) return;
 
         try {
-          const res = await fetchWithAuth(url, {
+          const res = await fetchWithAuth(`${API}/synthesis/merge`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ date }),
           });
           const d = await res.json();
           if (d.error) throw new Error(d.error);
+          showToast("合并任务已启动", "success");
         } catch (e) {
-          alert("失败: " + e.message);
-        }
-      }
-
-      async function uploadFiles() {
-        const input = document.getElementById("fileInput");
-        if (input.files.length === 0) return alert("请选择文件");
-
-        const fd = new FormData();
-        for (const f of input.files) fd.append("files", f);
-
-        const btn = document.getElementById("uploadBtn");
-        btn.textContent = "上传中...";
-        btn.disabled = true;
-
-        try {
-          const res = await fetchWithAuth(`${API}/upload`, {
-            method: "POST",
-            body: fd,
-          });
-          if (!res.ok) throw new Error("上传失败");
-          loadFiles();
-          alert("上传成功");
-          input.value = "";
-        } catch (e) {
-          alert(e.message);
-        } finally {
-          btn.textContent = "上传";
-          btn.disabled = false;
+          showToast("失败: " + e.message, "error");
         }
       }
 

@@ -20,6 +20,7 @@ const {
   TASK_STATUS,
 } = require("../state");
 const { getPaths } = require("../utils/helpers");
+const { getIssueConfig, detectIssueType } = require("../config/issueTypes");
 const {
   runSynthesisTask,
   runMergeOnly,
@@ -73,7 +74,7 @@ const dataStorage = multer.diskStorage({
 });
 const uploadData = multer({ storage: dataStorage });
 
-// ========== 原有API ==========
+// ========== 数据文件API ==========
 
 // 上传数据文件
 router.post("/upload", uploadData.array("files"), (req, res) => {
@@ -82,16 +83,23 @@ router.post("/upload", uploadData.array("files"), (req, res) => {
   res.send({ status: "success", files: names });
 });
 
-// 获取文件列表
+// 获取文件列表 - 支持周刊和月刊
 router.get("/files", async (req, res) => {
   try {
     const files = await fs.readdir(DIR_DATA);
-    const dataFiles = files.filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f));
+
+    // 匹配周刊 (2026-01-17.json) 和月刊 (2026-01.json)
+    const dataFiles = files.filter((f) =>
+      /^\d{4}-\d{2}(-\d{2})?\.json$/.test(f),
+    );
+
     const result = await Promise.all(
       dataFiles.map(async (f) => {
         const date = f.replace(".json", "");
         const { final } = getPaths(date);
         const hasVideo = await fs.pathExists(final);
+        const issueType = detectIssueType(date);
+
         return {
           date,
           dataFile: f,
@@ -99,14 +107,24 @@ router.get("/files", async (req, res) => {
             ? `${date}信息.json`
             : null,
           hasVideo,
+          issueType,
+          issueTypeName:
+            issueType === "weekly"
+              ? "周刊"
+              : issueType === "monthly"
+                ? "月刊"
+                : "特刊",
         };
       }),
     );
+
     res.send({ files: result.sort((a, b) => b.date.localeCompare(a.date)) });
   } catch (e) {
     res.status(500).send({ error: e.message });
   }
 });
+
+// ========== 分片管理API ==========
 
 // 获取分片列表
 router.get("/segments", async (req, res) => {
@@ -118,38 +136,16 @@ router.get("/segments", async (req, res) => {
       return res.send({ segments: [] });
     }
     const files = await fs.readdir(segments);
-    res.send({ segments: files.filter((f) => f.endsWith(".mp4")).sort() });
+    const filtered = files
+      .filter((f) => f.endsWith(".mp4") && !f.endsWith("_raw.mp4"))
+      .sort();
+    res.send({ segments: filtered });
   } catch (e) {
     res.status(500).send({ error: e.message });
   }
 });
 
-// 上传替换分片
-router.post("/segment/upload", uploadSegment.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).send({ error: "上传失败" });
-  log(`手动上传分片: ${req.body.date}/${req.file.filename}`);
-  res.send({ status: "success", filename: req.file.filename });
-});
-
-// 删除分片
-router.delete("/segment", async (req, res) => {
-  const { date, name } = req.body;
-  if (!date || !name) return res.status(400).send({ error: "参数不完整" });
-
-  try {
-    const { segments } = getPaths(date);
-    const filePath = path.join(segments, name);
-    if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath);
-      log(`删除分片: ${date}/${name}`);
-      res.send({ status: "success" });
-    } else {
-      res.status(404).send({ error: "文件不存在" });
-    }
-  } catch (e) {
-    res.status(500).send({ error: e.message });
-  }
-});
+// ========== 任务控制API ==========
 
 // 获取任务状态
 router.get("/status", (req, res) => res.send(getTask()));
@@ -165,8 +161,13 @@ router.post("/synthesis/start", async (req, res) => {
   }
 
   resetTask(date);
-  log(`开始全量合成: ${date}`);
-  res.send({ status: "started" });
+
+  const issueType = detectIssueType(date);
+  const typeName =
+    issueType === "weekly" ? "周刊" : issueType === "monthly" ? "月刊" : "特刊";
+  log(`开始${typeName}合成: ${date}`);
+
+  res.send({ status: "started", issueType });
 
   runSynthesisTask(date).catch((e) => {
     setTaskStatus(TASK_STATUS.FAILED, e.message);
@@ -211,14 +212,22 @@ router.post("/synthesis/segment", async (req, res) => {
     let targetFile = segmentName;
 
     if (type && rank) {
-      targetFile = `rank_${type}_${rank.toString().padStart(2, "0")}.mp4`;
+      targetFile = `rank_${type}_${rank.toString().padStart(3, "0")}.mp4`;
     }
 
     if (targetFile) {
       const filePath = path.join(segments, targetFile);
+      const rawName = targetFile.replace(".mp4", "_raw.mp4");
+      const rawPath = path.join(segments, rawName);
+
       if (await fs.pathExists(filePath)) {
         await fs.remove(filePath);
-        log(`删除分片以触发重绘: ${targetFile}`);
+        log(`删除分片: ${targetFile}`);
+      }
+
+      if (await fs.pathExists(rawPath)) {
+        await fs.remove(rawPath);
+        log(`删除中间文件: ${rawName}`);
       }
     }
 
@@ -231,12 +240,13 @@ router.post("/synthesis/segment", async (req, res) => {
   }
 });
 
-// ========== 新增：歌曲和裁切API ==========
+// ========== 歌曲和裁切API ==========
 
-// 获取某期的所有歌曲
+// 获取某期的所有歌曲 - 适配不同类型
 router.get("/songs/:date", async (req, res) => {
   const { date } = req.params;
   const dataFile = path.join(DIR_DATA, `${date}.json`);
+  const infoFile = path.join(DIR_DATA, `${date}信息.json`);
 
   if (!fs.existsSync(dataFile)) {
     return res.status(404).send({ error: "数据文件不存在" });
@@ -244,10 +254,20 @@ router.get("/songs/:date", async (req, res) => {
 
   try {
     const data = await fs.readJson(dataFile);
-    const newRankList = (data.new_rank_top10 || []).slice(0, 10);
-    const mainRankList = (data.total_rank_top20 || []).slice(0, 20);
+    const infoData = fs.existsSync(infoFile) ? await fs.readJson(infoFile) : {};
+    const config = getIssueConfig(date, infoData);
 
-    // 附加裁切信息和视频信息
+    // 根据配置获取对应字段
+    const newRankField = config.dataFields?.newRank || "new_rank_top10";
+    const mainRankField = config.dataFields?.mainRank || "total_rank_top20";
+
+    const newRankList = config.sections.newRank?.enabled
+      ? (data[newRankField] || []).slice(0, config.newRankCount)
+      : [];
+    const mainRankList = config.sections.mainRank?.enabled
+      ? (data[mainRankField] || []).slice(0, config.mainRankCount)
+      : [];
+
     const enrichSong = (song, type) => {
       const clip = getClipSetting(song.bvid);
       const video = getFullVideoInfo(song.bvid);
@@ -265,7 +285,21 @@ router.get("/songs/:date", async (req, res) => {
       mainRank: mainRankList.map((s) => enrichSong(s, "main")),
     };
 
-    res.send({ date, songs, index: data.index });
+    res.send({
+      date,
+      songs,
+      index: data.index,
+      issueType: config._type,
+      config: {
+        name: config.name,
+        newRankCount: config.newRankCount,
+        mainRankCount: config.mainRankCount,
+        showCount: config.showCount,
+        trendCount: config.trendCount,
+        trendKey: config.trendKey,
+        subRankRange: config.subRankRange,
+      },
+    });
   } catch (e) {
     res.status(500).send({ error: e.message });
   }
@@ -309,6 +343,8 @@ router.delete("/clips/:bvid", (req, res) => {
   res.send({ success: deleted });
 });
 
+// ========== 视频下载API ==========
+
 // 下载完整视频（用于预览）
 router.post("/full-video/:bvid", async (req, res) => {
   const { bvid } = req.params;
@@ -332,10 +368,8 @@ router.post("/full-video/batch", async (req, res) => {
     return res.status(400).send({ error: "bvids 必须是数组" });
   }
 
-  // 立即返回，后台下载
   res.send({ success: true, message: `开始下载 ${bvids.length} 个视频` });
 
-  // 串行下载避免过载
   for (const bvid of bvids) {
     try {
       await downloadFullVideo(bvid);
@@ -355,6 +389,22 @@ router.post("/analyze/:bvid", async (req, res) => {
     res.send(result.data);
   } catch (e) {
     res.status(500).send({ error: "分析失败", message: e.message });
+  }
+});
+
+// ========== 期刊配置API ==========
+
+// 获取期刊配置
+router.get("/issue-config/:date", async (req, res) => {
+  const { date } = req.params;
+  const infoFile = path.join(DIR_DATA, `${date}信息.json`);
+
+  try {
+    const infoData = fs.existsSync(infoFile) ? await fs.readJson(infoFile) : {};
+    const config = getIssueConfig(date, infoData);
+    res.send(config);
+  } catch (e) {
+    res.status(500).send({ error: e.message });
   }
 });
 

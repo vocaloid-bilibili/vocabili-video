@@ -44,7 +44,7 @@ const STYLES = {
   fontNum: '"Arial Black", "Impact", sans-serif',
 };
 
-// 日刊趋势的7个颜色
+// 趋势颜色
 const TREND_COLORS = [
   STYLES.colors.blue,
   STYLES.colors.orange,
@@ -56,7 +56,7 @@ const TREND_COLORS = [
 ];
 
 // ------------------------------------------------------------------
-// 辅助函数：格式化数字为固定小数位
+// 辅助函数
 // ------------------------------------------------------------------
 const formatFix = (value: any, decimals: number = 2): string => {
   if (value === undefined || value === null || value === "") return "";
@@ -66,7 +66,7 @@ const formatFix = (value: any, decimals: number = 2): string => {
 };
 
 // ------------------------------------------------------------------
-// 组件：自适应压缩内容（支持children）
+// 组件：自适应压缩内容
 // ------------------------------------------------------------------
 const FitContent = ({
   children,
@@ -85,7 +85,6 @@ const FitContent = ({
     if (!container || !content) return;
 
     content.style.transform = "scaleX(1)";
-
     const availableWidth = container.clientWidth;
     const actualWidth = content.scrollWidth;
 
@@ -118,7 +117,6 @@ const FitContent = ({
       >
         {children}
       </div>
-
       <div
         ref={contentRef}
         style={{
@@ -170,12 +168,7 @@ const FitTitle = ({
   return (
     <div
       ref={containerRef}
-      style={{
-        width: "100%",
-        overflow: "hidden",
-        ...style,
-        display: "block",
-      }}
+      style={{ width: "100%", overflow: "hidden", ...style, display: "block" }}
     >
       <span
         ref={textRef}
@@ -192,17 +185,11 @@ const FitTitle = ({
   );
 };
 
-// 辅助函数：显示修正系数
 const FixLabel = ({ value }: { value: any }) => {
   if (value === undefined || value === null || value === "") return null;
   return (
     <span
-      style={{
-        fontSize: 20,
-        color: "#666",
-        marginLeft: 8,
-        fontWeight: "bold",
-      }}
+      style={{ fontSize: 20, color: "#666", marginLeft: 8, fontWeight: "bold" }}
     >
       (×{formatFix(value, 2)})
     </span>
@@ -210,9 +197,15 @@ const FixLabel = ({ value }: { value: any }) => {
 };
 
 // ------------------------------------------------------------------
-// 组件：日刊趋势条
+// 组件：趋势条（支持动态数量）
 // ------------------------------------------------------------------
-const DailyTrendBar = ({ trends }: { trends: Record<string, any> }) => {
+const TrendBar = ({
+  trends,
+  count = 7,
+}: {
+  trends: Record<string, any>;
+  count?: number;
+}) => {
   if (!trends) return null;
 
   return (
@@ -226,7 +219,8 @@ const DailyTrendBar = ({ trends }: { trends: Record<string, any> }) => {
         border: "2px solid rgba(0,0,0,0.3)",
       }}
     >
-      {[1, 2, 3, 4, 5, 6, 7].map((day, idx) => {
+      {Array.from({ length: count }, (_, idx) => {
+        const day = idx + 1;
         const value = trends[String(day)];
         const displayValue = value === "-" || value === undefined ? "-" : value;
 
@@ -235,16 +229,17 @@ const DailyTrendBar = ({ trends }: { trends: Record<string, any> }) => {
             key={day}
             style={{
               flex: 1,
-              backgroundColor: TREND_COLORS[idx],
+              backgroundColor: TREND_COLORS[idx % TREND_COLORS.length],
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRight: idx < 6 ? "1px solid rgba(0,0,0,0.15)" : "none",
+              borderRight:
+                idx < count - 1 ? "1px solid rgba(0,0,0,0.15)" : "none",
             }}
           >
             <span
               style={{
-                fontSize: 16,
+                fontSize: count > 5 ? 14 : 16,
                 fontWeight: 900,
                 fontFamily: STYLES.fontNum,
                 color: "#333",
@@ -463,7 +458,13 @@ export const NewSongCard = (props: any) => {
 
   const scoreStr = new Intl.NumberFormat().format(safeParse(props.score));
 
-  // ------------------- 计算各项数据的最佳排名 -------------------
+  // 配置参数
+  const trendKey = props.trendKey || "daily_trends";
+  const trendCount = props.trendCount || 7;
+  const trendData =
+    props[trendKey] || props.daily_trends || props.weekly_trends;
+
+  // 计算各项数据的最佳排名
   const allRanks = [
     props.view_rank,
     props.favorite_rank,
@@ -478,7 +479,7 @@ export const NewSongCard = (props: any) => {
 
   const minRank = allRanks.length > 0 ? Math.min(...allRanks) : 0;
 
-  // ------------------- 动画逻辑 -------------------
+  // 动画逻辑
   const transitionFrames = 35;
 
   const volume = interpolate(
@@ -563,7 +564,7 @@ export const NewSongCard = (props: any) => {
           minWidth: 0,
         }}
       >
-        {/* 1. 视频容器 */}
+        {/* 视频容器 */}
         <div
           style={{
             width: "100%",
@@ -601,7 +602,7 @@ export const NewSongCard = (props: any) => {
           )}
         </div>
 
-        {/* 2. 底部信息栏 */}
+        {/* 底部信息栏 */}
         <div
           style={{
             flex: 1,
@@ -620,7 +621,6 @@ export const NewSongCard = (props: any) => {
             overflow: "hidden",
           }}
         >
-          {/* 标题 */}
           <h1 style={{ margin: 0, width: "100%" }}>
             <FitTitle
               text={props.title}
@@ -634,7 +634,6 @@ export const NewSongCard = (props: any) => {
             />
           </h1>
 
-          {/* 第一行：作者 | 成就 */}
           <div
             style={{
               display: "flex",
@@ -653,7 +652,6 @@ export const NewSongCard = (props: any) => {
                 }}
               />
             </div>
-
             {props.honor && props.honor.length > 0 && (
               <div
                 style={{
@@ -671,7 +669,6 @@ export const NewSongCard = (props: any) => {
             )}
           </div>
 
-          {/* 第二行：歌手+引擎 | 标签 */}
           <div
             style={{
               display: "flex",
@@ -715,7 +712,6 @@ export const NewSongCard = (props: any) => {
                 )}
               </FitContent>
             </div>
-
             <div
               style={{
                 display: "flex",
@@ -724,7 +720,10 @@ export const NewSongCard = (props: any) => {
                 flexShrink: 0,
               }}
             >
-              <InfoTag text={props.pubdate.split(" ")[0]} color="#fff9c4" />
+              <InfoTag
+                text={props.pubdate?.split(" ")[0] || ""}
+                color="#fff9c4"
+              />
               <InfoTag text={props.songType} color="#e1bee7" />
               <InfoTag
                 text={props.copyrightLabel}
@@ -752,7 +751,7 @@ export const NewSongCard = (props: any) => {
           boxSizing: "border-box",
         }}
       >
-        {/* --- 上半部分：排名与分数 --- */}
+        {/* 上半部分：排名与分数 */}
         <div
           style={{
             flex: "0 0 auto",
@@ -762,7 +761,6 @@ export const NewSongCard = (props: any) => {
             marginBottom: 16,
           }}
         >
-          {/* 第一行：排名 + 趋势 */}
           <div
             style={{
               display: "flex",
@@ -771,7 +769,7 @@ export const NewSongCard = (props: any) => {
               height: 160,
             }}
           >
-            {/* 左块：核心排名展示（新曲榜排名，无累计上榜） */}
+            {/* 左块：核心排名 */}
             <div
               style={{
                 flex: 4,
@@ -801,7 +799,6 @@ export const NewSongCard = (props: any) => {
               >
                 新曲榜排名
               </div>
-
               <div
                 style={{
                   flex: 1,
@@ -825,7 +822,6 @@ export const NewSongCard = (props: any) => {
                   {props.rank}
                 </div>
               </div>
-
               <div
                 style={{
                   position: "absolute",
@@ -842,7 +838,8 @@ export const NewSongCard = (props: any) => {
                 NEW
               </div>
             </div>
-            {/* 右块：新曲榜标识 + 总榜排名 + 日刊趋势 */}
+
+            {/* 右块：趋势 */}
             <div
               style={{
                 flex: 5,
@@ -855,7 +852,6 @@ export const NewSongCard = (props: any) => {
                 overflow: "hidden",
               }}
             >
-              {/* 背景水印 TREND - 位于下方 */}
               <div
                 style={{
                   position: "absolute",
@@ -872,7 +868,6 @@ export const NewSongCard = (props: any) => {
                 TREND
               </div>
 
-              {/* 上部：新曲榜（独占） */}
               <div
                 style={{
                   flex: 1,
@@ -897,7 +892,6 @@ export const NewSongCard = (props: any) => {
                 </span>
               </div>
 
-              {/* 中部：总榜排名（和TREND一行） */}
               <div
                 style={{
                   display: "flex",
@@ -909,11 +903,7 @@ export const NewSongCard = (props: any) => {
                 }}
               >
                 <span
-                  style={{
-                    fontSize: 18,
-                    color: "#999",
-                    fontWeight: "bold",
-                  }}
+                  style={{ fontSize: 18, color: "#999", fontWeight: "bold" }}
                 >
                   总榜排名
                 </span>
@@ -929,16 +919,15 @@ export const NewSongCard = (props: any) => {
                 </span>
               </div>
 
-              {/* 下部：日刊趋势 */}
-              {props.daily_trends && (
+              {trendData && (
                 <div style={{ padding: "0 8px 8px 8px" }}>
-                  <DailyTrendBar trends={props.daily_trends} />
+                  <TrendBar trends={trendData} count={trendCount} />
                 </div>
               )}
             </div>
           </div>
 
-          {/* 第二行：综合得分 */}
+          {/* 综合得分 */}
           <div
             style={{
               height: 110,
@@ -964,7 +953,6 @@ export const NewSongCard = (props: any) => {
                 backgroundColor: STYLES.colors.blue,
               }}
             />
-
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span
                 style={{
@@ -976,8 +964,6 @@ export const NewSongCard = (props: any) => {
               >
                 综合得分
               </span>
-
-              {/* 新曲榜统一显示 NEW */}
               <div
                 style={{
                   display: "flex",
@@ -1001,7 +987,6 @@ export const NewSongCard = (props: any) => {
                   NEW
                 </span>
               </div>
-
               {props.fixB && props.fixC && (
                 <span
                   style={{
@@ -1018,7 +1003,6 @@ export const NewSongCard = (props: any) => {
                 </span>
               )}
             </div>
-
             <div
               style={{
                 display: "flex",
@@ -1043,7 +1027,7 @@ export const NewSongCard = (props: any) => {
           </div>
         </div>
 
-        {/* --- 下半部分：详细数据 --- */}
+        {/* 下半部分：详细数据 */}
         <div
           style={{
             flex: 1,

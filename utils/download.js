@@ -13,6 +13,45 @@ const {
 const { log } = require("../state");
 
 const downloadLocks = new Map();
+const LOCK_TIMEOUT = 60 * 1000;
+
+function isValidBvid(bvid) {
+  if (!bvid || typeof bvid !== "string") return false;
+  return /^BV[a-zA-Z0-9]{10}$/.test(bvid);
+}
+
+async function acquireLock(lockKey, timeout = LOCK_TIMEOUT) {
+  if (downloadLocks.has(lockKey)) {
+    const lock = downloadLocks.get(lockKey);
+    if (Date.now() - lock.startTime > timeout) {
+      if (lock.resolve) lock.resolve();
+      downloadLocks.delete(lockKey);
+    } else {
+      try {
+        await Promise.race([
+          lock.promise,
+          new Promise((_, rej) =>
+            setTimeout(() => rej(new Error("timeout")), timeout),
+          ),
+        ]);
+      } catch (e) {
+        downloadLocks.delete(lockKey);
+      }
+      return false;
+    }
+  }
+
+  let resolve;
+  const promise = new Promise((r) => (resolve = r));
+  downloadLocks.set(lockKey, { promise, resolve, startTime: Date.now() });
+  return true;
+}
+
+function releaseLock(lockKey) {
+  const lock = downloadLocks.get(lockKey);
+  if (lock && lock.resolve) lock.resolve();
+  downloadLocks.delete(lockKey);
+}
 
 async function downloadImage(url) {
   if (!url) return "";
@@ -29,6 +68,7 @@ async function downloadImage(url) {
       url,
       method: "GET",
       responseType: "stream",
+      timeout: 30000,
       headers: {
         Referer: "https://www.bilibili.com/",
         "User-Agent": "Mozilla/5.0",
@@ -47,6 +87,8 @@ async function downloadImage(url) {
 
 // 下载完整视频（仅P1）
 async function downloadFullVideoInternal(bvid) {
+  if (!isValidBvid(bvid)) return null;
+
   fs.ensureDirSync(DIR_FULL_VIDEO);
   const outputPath = path.join(DIR_FULL_VIDEO, `${bvid}.mp4`);
 
@@ -62,54 +104,47 @@ async function downloadFullVideoInternal(bvid) {
     }
   }
 
-  // 下载锁
   const lockKey = `full_${bvid}`;
-  if (downloadLocks.has(lockKey)) {
-    log(`等待完整视频下载: ${bvid}`);
-    await downloadLocks.get(lockKey);
+  const gotLock = await acquireLock(lockKey);
+
+  if (!gotLock) {
+    // 等待结束，检查文件
     if (fs.existsSync(outputPath)) {
-      const dur = await getDuration(outputPath);
-      return { path: outputPath, duration: dur };
+      try {
+        const dur = await getDuration(outputPath);
+        return { path: outputPath, duration: dur };
+      } catch (e) {}
     }
     return null;
   }
 
-  let resolve;
-  const lockPromise = new Promise((r) => (resolve = r));
-  downloadLocks.set(lockKey, lockPromise);
-
   try {
-    log(`下载完整视频: ${bvid}`);
+    log(`下载视频: ${bvid}`);
     const url = `https://www.bilibili.com/video/${bvid}`;
-
-    // 关键：--playlist-items 1 确保只下载P1
     const cmd = `yt-dlp "${url}" -o "${outputPath}" --playlist-items 1 --format "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best" --merge-output-format mp4 --force-overwrites --no-warnings`;
 
     await execPromise(cmd);
 
     if (fs.existsSync(outputPath)) {
       const dur = await getDuration(outputPath);
-      log(`完整视频下载完成: ${bvid} (${dur.toFixed(1)}s)`);
       return { path: outputPath, duration: dur };
     }
     return null;
   } catch (e) {
-    log(`完整视频下载失败 ${bvid}: ${e.message}`);
+    log(`下载失败: ${bvid}`);
     return null;
   } finally {
-    downloadLocks.delete(lockKey);
-    resolve();
+    releaseLock(lockKey);
   }
 }
 
-// 从完整视频裁剪片段（GPU加速）
+// 从完整视频裁剪片段
 async function clipFromFullVideo(
   fullVideoPath,
   startTime,
   duration,
   outputPath,
 ) {
-  // GPU 解码 + 编码
   const cmd = `ffmpeg -hwaccel cuda -ss ${startTime} -i "${fullVideoPath}" -t ${duration} -c:v h264_nvenc -preset p1 -rc vbr -cq 23 -r 60 -g 60 -bf 0 -pix_fmt yuv420p -movflags +faststart -c:a aac -ar 48000 -b:a 192k -y "${outputPath}"`;
 
   try {
@@ -117,7 +152,6 @@ async function clipFromFullVideo(
     return true;
   } catch (e) {
     // GPU 失败，回退到 CPU
-    log(`GPU裁剪失败，使用CPU: ${e.message.split("\n")[0]}`);
     const cpuCmd = `ffmpeg -ss ${startTime} -i "${fullVideoPath}" -t ${duration} -c:v libx264 -preset fast -crf 23 -r 60 -g 60 -bf 0 -pix_fmt yuv420p -movflags +faststart -c:a aac -ar 48000 -b:a 192k -y "${outputPath}"`;
     await execPromise(cpuCmd);
     return true;
@@ -125,6 +159,8 @@ async function clipFromFullVideo(
 }
 
 async function downloadClip(bvid, startTime, duration, retries = 3) {
+  if (!isValidBvid(bvid)) return null;
+
   const fileName = `${bvid}_${startTime.toFixed(2)}_${duration}.mp4`;
   const outputPath = path.join(DIR_DOWNLOADS, fileName);
 
@@ -135,97 +171,74 @@ async function downloadClip(bvid, startTime, duration, retries = 3) {
       if (actualDuration >= duration - 1) {
         return outputPath;
       }
-      log(`视频不完整 ${fileName}，重新裁剪`);
       fs.unlinkSync(outputPath);
     } catch (e) {
-      log(`视频损坏 ${fileName}，重新裁剪`);
       fs.unlinkSync(outputPath);
     }
   }
 
-  // 片段下载锁
   const lockKey = `clip_${fileName}`;
-  if (downloadLocks.has(lockKey)) {
-    log(`等待片段处理: ${fileName}`);
-    await downloadLocks.get(lockKey);
+  const gotLock = await acquireLock(lockKey);
+
+  if (!gotLock) {
     if (fs.existsSync(outputPath)) return outputPath;
   }
 
-  let resolve;
-  const lockPromise = new Promise((r) => (resolve = r));
-  downloadLocks.set(lockKey, lockPromise);
-
-  let lastError = null;
-
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      if (attempt > 1) {
-        log(`重试裁剪 (${attempt}/${retries}): ${bvid}`);
-        await new Promise((r) => setTimeout(r, 2000 * attempt));
-      }
-
-      // 1. 获取或下载完整视频
-      const fullVideo = await downloadFullVideoInternal(bvid);
-      if (!fullVideo) {
-        throw new Error("完整视频下载失败");
-      }
-
-      // 2. 检查裁剪范围是否有效
-      if (startTime + duration > fullVideo.duration + 1) {
-        log(
-          `警告: 裁剪范围超出视频时长 (${startTime}+${duration} > ${fullVideo.duration.toFixed(1)})`,
-        );
-        // 调整 duration
-        duration = Math.max(5, fullVideo.duration - startTime);
-      }
-
-      // 3. 从完整视频裁剪
-      log(
-        `裁剪片段: ${bvid} (${startTime.toFixed(1)}s - ${(startTime + duration).toFixed(1)}s)`,
-      );
-      await clipFromFullVideo(fullVideo.path, startTime, duration, outputPath);
-
-      // 4. 验证
-      if (fs.existsSync(outputPath)) {
-        const actualDuration = await getDuration(outputPath);
-        if (actualDuration >= duration - 2) {
-          log(`裁剪完成: ${fileName} (${actualDuration.toFixed(1)}s)`);
-          downloadLocks.delete(lockKey);
-          resolve();
-          return outputPath;
-        } else {
-          log(`裁剪不完整: ${actualDuration.toFixed(1)}s < ${duration}s`);
-          if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-          lastError = new Error("裁剪时长不足");
-          continue;
+  try {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        if (attempt > 1) {
+          await new Promise((r) => setTimeout(r, 2000 * attempt));
         }
-      }
-    } catch (e) {
-      lastError = e;
-      const shortMsg = e.message.split("\n")[0].substring(0, 100);
-      log(`裁剪出错 (${attempt}/${retries}): ${shortMsg}`);
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-      continue;
-    }
-  }
 
-  log(`裁剪失败 ${bvid}: 重试${retries}次后仍失败`);
-  downloadLocks.delete(lockKey);
-  resolve();
-  return null;
+        const fullVideo = await downloadFullVideoInternal(bvid);
+        if (!fullVideo) {
+          throw new Error("视频下载失败");
+        }
+
+        let clipDuration = duration;
+        if (startTime + duration > fullVideo.duration + 1) {
+          clipDuration = Math.max(5, fullVideo.duration - startTime);
+        }
+
+        await clipFromFullVideo(
+          fullVideo.path,
+          startTime,
+          clipDuration,
+          outputPath,
+        );
+
+        if (fs.existsSync(outputPath)) {
+          const actualDuration = await getDuration(outputPath);
+          if (actualDuration >= clipDuration - 2) {
+            return outputPath;
+          }
+          fs.unlinkSync(outputPath);
+        }
+      } catch (e) {
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      }
+    }
+
+    log(`裁剪失败: ${bvid}`);
+    return null;
+  } finally {
+    releaseLock(lockKey);
+  }
 }
 
 async function downloadAudio(bvid, name) {
+  if (!isValidBvid(bvid)) return null;
+
   const output = path.join(DIR_DOWNLOADS, name);
   if (fs.existsSync(output) && fs.statSync(output).size > 1000) return output;
 
-  // 关键：--playlist-items 1 确保只下载P1的音频
   const cmd = `yt-dlp -x --audio-format mp3 --playlist-items 1 -o "${output}" "https://www.bilibili.com/video/${bvid}" --force-overwrites`;
   try {
     await execPromise(cmd);
     return output;
   } catch (e) {
-    log(`音频下载失败 ${bvid}`);
+    log(`音频下载失败: ${bvid}`);
     return null;
   }
 }

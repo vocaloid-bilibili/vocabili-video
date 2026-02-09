@@ -24,7 +24,12 @@ export const RemotionRoot: React.FC = () => {
         fps={60}
         width={1920}
         height={1080}
-        defaultProps={{ issue: "#68", date: "2025.12.20", coverImg: "" }}
+        defaultProps={{
+          issue: "#68",
+          date: "2025.12.20",
+          coverImg: "",
+          issueType: "weekly",
+        }}
       />
       <Composition
         id="InfoCard"
@@ -50,6 +55,9 @@ export const RemotionRoot: React.FC = () => {
         fps={60}
         width={1920}
         height={1080}
+        defaultProps={{
+          issueType: "weekly",
+        }}
       />
       <Composition
         id="SectionTitle"
@@ -74,7 +82,13 @@ export const RemotionRoot: React.FC = () => {
         fps={60}
         width={1920}
         height={1080}
-        defaultProps={{ rank: 1, title: "测试", score: 100000 }}
+        defaultProps={{
+          rank: 1,
+          title: "测试",
+          score: 100000,
+          trendCount: 7,
+          trendKey: "daily_trends",
+        }}
       />
       <Composition
         id="RankCard"
@@ -83,7 +97,14 @@ export const RemotionRoot: React.FC = () => {
         fps={60}
         width={1920}
         height={1080}
-        defaultProps={{ rank: 1, title: "测试", score: 100000 }}
+        defaultProps={{
+          rank: 1,
+          title: "测试",
+          score: 100000,
+          showCount: true,
+          trendCount: 7,
+          trendKey: "daily_trends",
+        }}
       />
       <Composition
         id="SingerRank"
@@ -128,7 +149,10 @@ export const RemotionRoot: React.FC = () => {
         fps={60}
         width={1920}
         height={1080}
-        defaultProps={{ stat: {} }}
+        defaultProps={{
+          stat: {},
+          topN: 100,
+        }}
       />
       <Composition
         id="StaffCard"
@@ -146,7 +170,10 @@ export const RemotionRoot: React.FC = () => {
         fps={60}
         width={1920}
         height={1080}
-        defaultProps={{ list: [] }}
+        defaultProps={{
+          list: [],
+          showCount: true,
+        }}
       />
     </>
   );

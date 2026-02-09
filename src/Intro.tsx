@@ -1,3 +1,4 @@
+// src/Intro.tsx
 import {
   AbsoluteFill,
   useVideoConfig,
@@ -39,17 +40,32 @@ const DotPattern = () => (
   />
 );
 
+// 根据类型获取显示名称
+const getIssueTypeName = (issueType: string): string => {
+  switch (issueType) {
+    case "monthly":
+      return "月刊";
+    case "weekly":
+    default:
+      return "周刊";
+  }
+};
+
 export const Intro = ({
   issue = "#68",
   date = "2025.12.20",
   coverImg = "",
+  issueType = "weekly",
 }: {
   issue?: string;
   date?: string;
   coverImg?: string;
+  issueType?: "weekly" | "monthly" | "special";
 }) => {
   const { fps, durationInFrames, height } = useVideoConfig();
   const frame = useCurrentFrame();
+
+  const issueTypeName = getIssueTypeName(issueType);
 
   const containerEntrance = spring({
     frame,
@@ -196,7 +212,9 @@ export const Intro = ({
                 textShadow: "4px 4px 0px rgba(0,0,0,0.1)",
               }}
             >
-              <div style={{ whiteSpace: "nowrap" }}>周刊虚拟歌手</div>
+              <div style={{ whiteSpace: "nowrap" }}>
+                {issueTypeName}虚拟歌手
+              </div>
               <div
                 style={{ color: STYLES.colors.biliBlue, whiteSpace: "nowrap" }}
               >
@@ -204,7 +222,7 @@ export const Intro = ({
               </div>
             </h1>
 
-            {/* 期数和日期 - 增大字体 */}
+            {/* 期数和日期 */}
             <div
               style={{
                 display: "flex",
@@ -264,7 +282,7 @@ export const Intro = ({
             </div>
           </div>
 
-          {/* 右侧封面区 - 增大比例 */}
+          {/* 右侧封面区 */}
           <div
             style={{
               flex: 5.5,
@@ -302,7 +320,7 @@ export const Intro = ({
               }}
             />
 
-            {/* 封面图 - 增大尺寸 */}
+            {/* 封面图 */}
             <div
               style={{
                 width: "95%",

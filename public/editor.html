@@ -617,9 +617,9 @@
             <div class="spacer"></div>
 
             <button class="btn btn-secondary" id="autoAnalyzeBtn">
-              🔍 自动分析
+              自动分析
             </button>
-            <button class="btn btn-primary" id="saveClipBtn">💾 保存</button>
+            <button class="btn btn-primary" id="saveClipBtn">保存</button>
 
             <div class="control-row">
               <div class="control-group">
@@ -823,6 +823,18 @@
         try {
           const data = await fetchAPI(`${API}/songs/${currentDate}`);
           songs = data.songs;
+
+          // 显示类型信息
+          const config = data.config;
+          const typeInfo =
+            data.issueType === "weekly"
+              ? "周刊"
+              : data.issueType === "monthly"
+                ? "月刊"
+                : "特刊";
+          document.querySelector("header h1").innerHTML =
+            `片段编辑器 <span style="font-size: 14px; color: #888; margin-left: 12px;">${typeInfo} - ${currentDate} (新曲${config.newRankCount}名, 主榜${config.mainRankCount}名)</span>`;
+
           renderSongList();
           updateClipProgress();
           document.getElementById("downloadAllBtn").disabled = false;
@@ -837,25 +849,32 @@
         const renderGroup = (list, title) => {
           if (!list.length) return "";
           return `
-          <div class="song-group-title">${title}</div>
-          ${list
-            .map(
-              (s) => `
-            <div class="song-item ${s._clip ? "has-clip" : ""}" data-bvid="${s.bvid}">
-              <div class="song-rank">${s.rank}</div>
-              <div class="song-info">
-                <div class="song-title">${s.title}</div>
-                <div class="song-meta">${s.author || s.vocal || "Unknown"}</div>
-              </div>
-              <div class="song-status ${s._videoExists ? "ready" : ""}">${s._videoExists ? "✓" : "○"}</div>
-            </div>
-          `,
-            )
-            .join("")}`;
+    <div class="song-group-title">${title}</div>
+    ${list
+      .map(
+        (s) => `
+      <div class="song-item ${s._clip ? "has-clip" : ""}" data-bvid="${s.bvid}">
+        <div class="song-rank">${s.rank}</div>
+        <div class="song-info">
+          <div class="song-title">${s.title || s.name}</div>
+          <div class="song-meta">${s.author || s.vocal || "Unknown"}</div>
+        </div>
+        <div class="song-status ${s._videoExists ? "ready" : ""}">${s._videoExists ? "✓" : "○"}</div>
+      </div>
+    `,
+      )
+      .join("")}`;
         };
+
+        // 动态标题
+        const newTitle =
+          songs.newRank.length > 0 ? `新曲榜 Top ${songs.newRank.length}` : "";
+        const mainTitle =
+          songs.mainRank.length > 0 ? `主榜 Top ${songs.mainRank.length}` : "";
+
         container.innerHTML =
-          renderGroup(songs.newRank, "新曲榜 Top 10") +
-          renderGroup(songs.mainRank, "主榜 Top 20");
+          renderGroup(songs.newRank, newTitle) +
+          renderGroup(songs.mainRank, mainTitle);
         container.querySelectorAll(".song-item").forEach((el) => {
           el.addEventListener("click", () => selectSong(el.dataset.bvid));
         });

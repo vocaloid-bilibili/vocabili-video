@@ -40,7 +40,7 @@ const STYLES = {
 };
 
 // ------------------------------------------------------------------
-// 子组件：统计项 (用于 Row 1 & 2)
+// 子组件：统计项
 // ------------------------------------------------------------------
 const StatItem = ({
   label,
@@ -52,7 +52,7 @@ const StatItem = ({
   label: string;
   value: number | string;
   unit: string;
-  change: number;
+  change: number | string;
   delay?: number;
 }) => {
   const { fps } = useVideoConfig();
@@ -66,9 +66,16 @@ const StatItem = ({
     config: { damping: 12 },
   });
 
+  const numChange = typeof change === "number" ? change : 0;
   const changeStr =
-    change > 0 ? `+${change}` : change === 0 ? "±0" : `${change}`;
-  const changeClass = change > 0 ? "up" : change < 0 ? "down" : "zero";
+    typeof change === "string"
+      ? change
+      : numChange > 0
+        ? `+${numChange}`
+        : numChange === 0
+          ? "±0"
+          : `${numChange}`;
+  const changeClass = numChange > 0 ? "up" : numChange < 0 ? "down" : "zero";
 
   const changeStyle = {
     up: { color: STYLES.colors.redText, background: STYLES.colors.redBg },
@@ -134,7 +141,7 @@ const StatItem = ({
 };
 
 // ------------------------------------------------------------------
-// 子组件：分数线项 (用于 Cutoff Row)
+// 子组件：分数线项
 // ------------------------------------------------------------------
 const CutoffItem = ({
   tag,
@@ -145,8 +152,8 @@ const CutoffItem = ({
 }: {
   tag: string;
   value: number;
-  change: number;
-  percent?: number; // 涨跌幅百分比 (可选)
+  change: number | string;
+  percent?: number;
   delay?: number;
 }) => {
   const { fps } = useVideoConfig();
@@ -160,12 +167,16 @@ const CutoffItem = ({
     config: { damping: 12 },
   });
 
+  const numChange = typeof change === "number" ? change : 0;
   const changeStr =
-    change > 0
-      ? `+${new Intl.NumberFormat().format(change)}`
-      : change === 0
-        ? "±0"
-        : `${new Intl.NumberFormat().format(change)}`;
+    typeof change === "string"
+      ? change
+      : numChange > 0
+        ? `+${new Intl.NumberFormat().format(numChange)}`
+        : numChange === 0
+          ? "±0"
+          : `${new Intl.NumberFormat().format(numChange)}`;
+
   const percentStr =
     percent > 0
       ? `(+${percent.toFixed(1)}%)`
@@ -173,10 +184,9 @@ const CutoffItem = ({
         ? `(${percent.toFixed(1)}%)`
         : `(0.0%)`;
 
-  // 如果没有传入 percent，则根据 change 计算一个假的或者不显示，这里假设外部传入
   const fullChangeStr = `${changeStr} ${percent !== undefined ? percentStr : ""}`;
 
-  const changeClass = change > 0 ? "up" : change < 0 ? "down" : "zero";
+  const changeClass = numChange > 0 ? "up" : numChange < 0 ? "down" : "zero";
 
   const changeStyle = {
     up: { color: STYLES.colors.redText, background: STYLES.colors.redBg },
@@ -242,7 +252,7 @@ const CutoffItem = ({
 };
 
 // ------------------------------------------------------------------
-// 子组件：Grid Cell (用于 Total Stats)
+// 子组件：Grid Cell
 // ------------------------------------------------------------------
 const GridCell = ({
   icon: Icon,
@@ -252,7 +262,7 @@ const GridCell = ({
 }: {
   icon: React.FC<any>;
   value: number;
-  diff: number;
+  diff: number | string;
   delay?: number;
 }) => {
   const { fps } = useVideoConfig();
@@ -266,14 +276,20 @@ const GridCell = ({
     config: { damping: 12 },
   });
 
+  const numDiff = typeof diff === "number" ? diff : 0;
   const diffStr =
-    diff > 0
-      ? `+${new Intl.NumberFormat().format(diff)}`
-      : diff === 0
-        ? "±0"
-        : `${new Intl.NumberFormat().format(diff)}`;
-  const rate = value !== 0 ? (diff / (value - diff)) * 100 : 0; // 计算环比: (本期 - 上期) / 上期 = diff / (value - diff)
-  // 注意：如果 value - diff == 0 (上期为0)，rate 可能 Infinity。简单处理。
+    typeof diff === "string"
+      ? diff
+      : numDiff > 0
+        ? `+${new Intl.NumberFormat().format(numDiff)}`
+        : numDiff === 0
+          ? "±0"
+          : `${new Intl.NumberFormat().format(numDiff)}`;
+
+  const rate =
+    value !== 0 && typeof diff === "number"
+      ? (numDiff / (value - numDiff)) * 100
+      : 0;
   const rateVal = isFinite(rate) ? rate : 0;
 
   const rateStr =
@@ -283,7 +299,7 @@ const GridCell = ({
         ? `(${rateVal.toFixed(1)}%)`
         : `(0.0%)`;
 
-  const changeClass = diff > 0 ? "up" : diff < 0 ? "down" : "zero";
+  const changeClass = numDiff > 0 ? "up" : numDiff < 0 ? "down" : "zero";
 
   const changeStyle = {
     up: { color: STYLES.colors.redText, background: STYLES.colors.redBg },
@@ -338,18 +354,20 @@ const GridCell = ({
         >
           {diffStr}
         </span>
-        <span
-          style={{
-            fontFamily: STYLES.fontMono,
-            fontSize: 18,
-            fontWeight: 900,
-            padding: "2px 6px",
-            borderRadius: 4,
-            ...changeStyle,
-          }}
-        >
-          {rateStr}
-        </span>
+        {typeof diff === "number" && (
+          <span
+            style={{
+              fontFamily: STYLES.fontMono,
+              fontSize: 18,
+              fontWeight: 900,
+              padding: "2px 6px",
+              borderRadius: 4,
+              ...changeStyle,
+            }}
+          >
+            {rateStr}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -358,15 +376,28 @@ const GridCell = ({
 // ------------------------------------------------------------------
 // 主组件：统计卡片
 // ------------------------------------------------------------------
-export const StatsCard = (props: { stat: any; comment?: string }) => {
-  const { stat, comment } = props;
+export const StatsCard = (props: {
+  stat: any;
+  comment?: string;
+  topN?: number;
+  scoreThresholds?: Array<{ key: string; label: string }>;
+  newSongPeriod?: string;
+}) => {
+  const {
+    stat,
+    comment = "请输入文本",
+    topN = 100,
+    scoreThresholds = [
+      { key: "count_over_500k", label: "50万分以上" },
+      { key: "count_over_100k", label: "10万分以上" },
+      { key: "count_over_50k", label: "5万分以上" },
+    ],
+    newSongPeriod = "2周内",
+  } = props;
+
   const { durationInFrames, fps } = useVideoConfig();
   const frame = useCurrentFrame();
 
-  // 默认评论文本
-  const displayComment = comment || "请输入文本";
-
-  // 卡片进场
   const cardEntrance = spring({
     frame,
     fps,
@@ -379,7 +410,6 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
     extrapolateRight: "clamp",
   });
 
-  // 卡片退场
   const exitStartFrame = durationInFrames - 30;
   const exitProgress = interpolate(
     frame,
@@ -390,7 +420,6 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
   const cardExitTranslateY = interpolate(exitProgress, [0, 1], [0, 50]);
   const cardExitOpacity = interpolate(exitProgress, [0, 1], [1, 0]);
 
-  // Row 4 外框动画 (delay 43，比内部GridCell的45早一点)
   const row4Entrance = spring({
     frame: frame - 43,
     fps,
@@ -399,7 +428,6 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
     config: { damping: 12 },
   });
 
-  // 底部评论区动画 (delay 68，在GridCell之后)
   const commentEntrance = spring({
     frame: frame - 68,
     fps,
@@ -407,6 +435,16 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
     to: 1,
     config: { damping: 12 },
   });
+
+  const getStatValue = (key: string) => stat?.[key]?.value || 0;
+  const getStatDiff = (key: string) => stat?.[key]?.diff ?? "-";
+
+  const calcPercent = (key: string) => {
+    const value = getStatValue(key);
+    const diff = stat?.[key]?.diff;
+    if (typeof diff !== "number" || value - diff === 0) return 0;
+    return (diff / (value - diff)) * 100;
+  };
 
   return (
     <AbsoluteFill
@@ -435,7 +473,6 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
           transform: `translateY(${cardEntrance + cardExitTranslateY}px)`,
         }}
       >
-        {/* Header */}
         <header
           style={{
             height: 80,
@@ -448,18 +485,12 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
           }}
         >
           <h1
-            style={{
-              color: "#fff",
-              fontSize: 40,
-              margin: 0,
-              fontWeight: 900,
-            }}
+            style={{ color: "#fff", fontSize: 40, margin: 0, fontWeight: 900 }}
           >
             本期榜单统计数据
           </h1>
         </header>
 
-        {/* Content */}
         <main
           style={{
             flex: 1,
@@ -469,96 +500,60 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
             gap: 18,
           }}
         >
-          {/* Row 1 */}
           <div style={{ display: "flex", gap: 50, flexWrap: "wrap" }}>
-            <StatItem
-              label="50万分以上"
-              value={stat?.count_over_500k?.value || 0}
-              unit="首"
-              change={stat?.count_over_500k?.diff || 0}
-              delay={5}
-            />
-            <StatItem
-              label="10万分以上"
-              value={stat?.count_over_100k?.value || 0}
-              unit="首"
-              change={stat?.count_over_100k?.diff || 0}
-              delay={10}
-            />
-            <StatItem
-              label="5万分以上"
-              value={stat?.count_over_50k?.value || 0}
-              unit="首"
-              change={stat?.count_over_50k?.diff || 0}
-              delay={15}
-            />
+            {scoreThresholds.map((threshold, idx) => (
+              <StatItem
+                key={threshold.key}
+                label={threshold.label}
+                value={getStatValue(threshold.key)}
+                unit="首"
+                change={getStatDiff(threshold.key)}
+                delay={5 + idx * 5}
+              />
+            ))}
           </div>
 
-          {/* Row 2 */}
           <div style={{ display: "flex", gap: 50, flexWrap: "wrap" }}>
             <StatItem
-              label="主榜2周内新曲"
-              value={stat?.count_new_main?.value || 0}
+              label={`主榜${newSongPeriod}新曲`}
+              value={getStatValue("count_new_main")}
               unit="首"
-              change={stat?.count_new_main?.diff || 0}
+              change={getStatDiff("count_new_main")}
               delay={20}
             />
             <StatItem
-              label="全榜2周内新曲"
-              value={stat?.count_new_total?.value || 0}
+              label={`全榜${newSongPeriod}新曲`}
+              value={getStatValue("count_new_total")}
               unit="首"
-              change={stat?.count_new_total?.diff || 0}
+              change={getStatDiff("count_new_total")}
               delay={25}
             />
           </div>
 
-          {/* Row 3: Cutoff */}
           <div style={{ display: "flex", gap: 25 }}>
             <CutoffItem
               tag="主榜起分"
-              value={stat?.cutoff_main?.value || 0}
-              change={stat?.cutoff_main?.diff || 0}
-              percent={
-                stat?.cutoff_main?.value &&
-                stat?.cutoff_main?.value - stat?.cutoff_main?.diff !== 0
-                  ? (stat.cutoff_main.diff /
-                      (stat.cutoff_main.value - stat.cutoff_main.diff)) *
-                    100
-                  : 0
-              }
+              value={getStatValue("cutoff_main")}
+              change={getStatDiff("cutoff_main")}
+              percent={calcPercent("cutoff_main")}
               delay={30}
             />
             <CutoffItem
               tag="副榜起分"
-              value={stat?.cutoff_sub?.value || 0}
-              change={stat?.cutoff_sub?.diff || 0}
-              percent={
-                stat?.cutoff_sub?.value &&
-                stat?.cutoff_sub?.value - stat?.cutoff_sub?.diff !== 0
-                  ? (stat.cutoff_sub.diff /
-                      (stat.cutoff_sub.value - stat.cutoff_sub.diff)) *
-                    100
-                  : 0
-              }
+              value={getStatValue("cutoff_sub")}
+              change={getStatDiff("cutoff_sub")}
+              percent={calcPercent("cutoff_sub")}
               delay={35}
             />
             <CutoffItem
               tag="新曲榜起分"
-              value={stat?.cutoff_new?.value || 0}
-              change={stat?.cutoff_new?.diff || 0}
-              percent={
-                stat?.cutoff_new?.value &&
-                stat?.cutoff_new?.value - stat?.cutoff_new?.diff !== 0
-                  ? (stat.cutoff_new.diff /
-                      (stat.cutoff_new.value - stat.cutoff_new.diff)) *
-                    100
-                  : 0
-              }
+              value={getStatValue("cutoff_new")}
+              change={getStatDiff("cutoff_new")}
+              percent={calcPercent("cutoff_new")}
               delay={40}
             />
           </div>
 
-          {/* Row 4: Total Stats - 添加动画 */}
           <div
             style={{
               border: "3px solid #222",
@@ -582,7 +577,7 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
                 fontFamily: STYLES.fontMain,
               }}
             >
-              单项排名前100总数据
+              单项排名前{topN}总数据
             </div>
             <div
               style={{
@@ -593,44 +588,44 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
             >
               <GridCell
                 icon={PlayIcon}
-                value={stat?.total_view?.value || 0}
-                diff={stat?.total_view?.diff || 0}
+                value={getStatValue("total_view")}
+                diff={getStatDiff("total_view")}
                 delay={45}
               />
               <GridCell
                 icon={StarIcon}
-                value={stat?.total_favorite?.value || 0}
-                diff={stat?.total_favorite?.diff || 0}
+                value={getStatValue("total_favorite")}
+                diff={getStatDiff("total_favorite")}
                 delay={48}
               />
               <GridCell
                 icon={CoinIcon}
-                value={stat?.total_coin?.value || 0}
-                diff={stat?.total_coin?.diff || 0}
+                value={getStatValue("total_coin")}
+                diff={getStatDiff("total_coin")}
                 delay={51}
               />
               <GridCell
                 icon={LikeIcon}
-                value={stat?.total_like?.value || 0}
-                diff={stat?.total_like?.diff || 0}
+                value={getStatValue("total_like")}
+                diff={getStatDiff("total_like")}
                 delay={54}
               />
               <GridCell
                 icon={DanmakuIcon}
-                value={stat?.total_danmaku?.value || 0}
-                diff={stat?.total_danmaku?.diff || 0}
+                value={getStatValue("total_danmaku")}
+                diff={getStatDiff("total_danmaku")}
                 delay={57}
               />
               <GridCell
                 icon={ReplyIcon}
-                value={stat?.total_reply?.value || 0}
-                diff={stat?.total_reply?.diff || 0}
+                value={getStatValue("total_reply")}
+                diff={getStatDiff("total_reply")}
                 delay={60}
               />
               <GridCell
                 icon={ShareIcon}
-                value={stat?.total_share?.value || 0}
-                diff={stat?.total_share?.diff || 0}
+                value={getStatValue("total_share")}
+                diff={getStatDiff("total_share")}
                 delay={63}
               />
             </div>
@@ -645,7 +640,6 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
             }}
           />
 
-          {/* 底部评论区 - 添加动画 */}
           <div
             style={{
               border: "3px solid #222",
@@ -670,7 +664,7 @@ export const StatsCard = (props: { stat: any; comment?: string }) => {
                 fontFamily: STYLES.fontMain,
               }}
             >
-              {displayComment}
+              {comment}
             </div>
           </div>
         </main>

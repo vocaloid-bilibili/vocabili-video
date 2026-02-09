@@ -12,6 +12,7 @@ const {
 } = require("../config");
 const { log, updateProgress, setTaskStatus, TASK_STATUS } = require("../state");
 const { getPaths, chunkArray } = require("../utils/helpers");
+const { getIssueConfig } = require("../config/issueTypes");
 const {
   downloadImage,
   downloadClip,
@@ -23,36 +24,44 @@ const {
   processP3,
   finalMerge,
   getDuration,
+  addAudioFade,
+  execPromise,
 } = require("../utils/ffmpeg");
 const {
   renderComposition,
+  renderCompositionRaw,
   renderRankSegment,
   renderStill,
 } = require("../utils/render");
 const { getClipSetting } = require("../utils/clips");
 
-// 时长配置
-const DUR_INTRO = 3;
-const DUR_INFOCARD = 5;
-const DUR_RULES = 35;
-const DUR_SECTION_TITLE = 2;
-const DUR_SHORT = 7;
+// 基础时长配置
 const FPS = 60;
+const DUR_INTRO = 3;
+const DUR_SHORT = 7;
+const DUR_SECTION_TITLE = 2;
+const DUR_RULES = 35;
 
 // 并行配置
 const DOWNLOAD_CONCURRENCY = 4;
 const RENDER_POOL_SIZE = 2;
 const SUB_RANK_POOL_SIZE = 4;
 
-// 获取裁切参数（仅自动分析，不检查手动设置）
+// ========== 工具函数 ==========
+
+function formatDate(dateStr) {
+  // 2025-01-17 -> 2025.01.17
+  // 2025-01 -> 2025.01
+  return dateStr.replace(/-/g, ".");
+}
+
 async function autoAnalyzeClip(bvid, defaultDuration = 20) {
   try {
     const res = await axios.post(PYTHON_API, {
       bvid,
       duration: defaultDuration,
     });
-    const startTime = res.data.start_time || 0;
-    return { startTime, duration: defaultDuration };
+    return { startTime: res.data.start_time || 0, duration: defaultDuration };
   } catch (e) {
     log(`分析失败 ${bvid}, 从头开始`);
     return { startTime: 0, duration: defaultDuration };
@@ -62,14 +71,11 @@ async function autoAnalyzeClip(bvid, defaultDuration = 20) {
 async function prepareAllAssets(songs, progressCallback) {
   log("========== 准备视频素材 ==========");
 
-  // 第一轮：收集所有歌曲的裁切参数
   const needAnalyze = [];
 
   for (const song of songs) {
     const saved = getClipSetting(song.bvid);
-
     if (saved) {
-      // 有手动设置，使用手动参数
       song._startTime = saved.startTime;
       song._duration = saved.duration;
       song._isManual = true;
@@ -77,15 +83,12 @@ async function prepareAllAssets(songs, progressCallback) {
         `手动设置: ${song.bvid} (${saved.startTime.toFixed(1)}s - ${saved.endTime.toFixed(1)}s)`,
       );
     } else {
-      // 没有手动设置，标记待处理
       needAnalyze.push(song);
     }
   }
 
-  // 第二轮：处理需要自动分析的（用户漏掉的）
   if (needAnalyze.length > 0) {
     log(`========== 自动分析 ${needAnalyze.length} 首未设置的歌曲 ==========`);
-
     for (const song of needAnalyze) {
       const defaultDuration = song._defaultDuration || 20;
       const { startTime, duration } = await autoAnalyzeClip(
@@ -99,7 +102,6 @@ async function prepareAllAssets(songs, progressCallback) {
     }
   }
 
-  // 第三轮：检查文件是否存在，不存在才下载
   log("========== 下载缺失的视频 ==========");
 
   let downloadedCount = 0;
@@ -110,11 +112,9 @@ async function prepareAllAssets(songs, progressCallback) {
 
     await Promise.all(
       batch.map(async (song) => {
-        // 构建文件名（和 downloadClip 内部一致）
         const fileName = `${song.bvid}_${song._startTime.toFixed(2)}_${song._duration}.mp4`;
         const filePath = path.join(DIR_DOWNLOADS, fileName);
 
-        // 检查是否已存在
         if (fs.existsSync(filePath)) {
           try {
             const actualDuration = await getDuration(filePath);
@@ -126,12 +126,10 @@ async function prepareAllAssets(songs, progressCallback) {
               return;
             }
           } catch (e) {
-            // 文件损坏，继续下载
             log(`文件损坏: ${song.bvid}, 重新下载`);
           }
         }
 
-        // 需要下载
         log(
           `下载: ${song.bvid} (${song._startTime.toFixed(1)}s - ${(song._startTime + song._duration).toFixed(1)}s)`,
         );
@@ -143,7 +141,6 @@ async function prepareAllAssets(songs, progressCallback) {
 
         song._videoPath = vid;
         song._thumbPath = thumb;
-
         if (vid) downloadedCount++;
       }),
     );
@@ -156,7 +153,6 @@ async function prepareAllAssets(songs, progressCallback) {
     }
   }
 
-  // 统计
   const manualCount = songs.filter((s) => s._isManual).length;
   const autoCount = songs.filter((s) => s._isAuto).length;
   const successCount = songs.filter((s) => s._videoPath).length;
@@ -167,8 +163,8 @@ async function prepareAllAssets(songs, progressCallback) {
   );
 }
 
-// 并行渲染榜单（已内置淡入淡出）
-async function renderRankBatch(songs, type, segments) {
+// 并行渲染榜单
+async function renderRankBatch(songs, type, segments, config) {
   const results = new Array(songs.length);
   let currentIndex = 0;
   const typeName = type === "new" ? "新曲榜" : "主榜";
@@ -179,7 +175,7 @@ async function renderRankBatch(songs, type, segments) {
       if (index >= songs.length) break;
 
       const song = songs[index];
-      const rankPadded = song.rank.toString().padStart(2, "0");
+      const rankPadded = song.rank.toString().padStart(3, "0");
       const targetPath = path.join(segments, `rank_${type}_${rankPadded}.mp4`);
 
       if (fs.existsSync(targetPath)) {
@@ -198,7 +194,6 @@ async function renderRankBatch(songs, type, segments) {
 
       log(`[W${workerId}] 渲染: ${typeName} ${song.rank} (${song._duration}s)`);
 
-      // renderRankSegment 内部已处理淡入淡出
       results[index] = await renderRankSegment(
         song,
         vid,
@@ -206,6 +201,7 @@ async function renderRankBatch(songs, type, segments) {
         type,
         segments,
         song._duration,
+        config,
       );
 
       log(`[W${workerId}] 完成: ${typeName} ${song.rank}`);
@@ -220,8 +216,8 @@ async function renderRankBatch(songs, type, segments) {
   return results.filter(Boolean);
 }
 
-// 并行渲染副榜（带淡入淡出）
-async function renderSubRankBatch(chunks, segments, duration) {
+// 并行渲染副榜
+async function renderSubRankBatch(chunks, segments, duration, config) {
   const results = [];
 
   log(`========== 并行渲染 副榜 (${SUB_RANK_POOL_SIZE}路) ==========`);
@@ -246,10 +242,19 @@ async function renderSubRankBatch(chunks, segments, duration) {
         );
 
         log(`副榜 Page${pageNum} 渲染中...`);
-        // renderComposition 内部已处理淡入淡出
-        return await renderComposition(
+
+        const renderFn = config.audioFade
+          ? renderComposition
+          : renderCompositionRaw;
+
+        return await renderFn(
           "SubRank",
-          { list: processed },
+          {
+            list: processed,
+            showCount: config.showCount,
+            trendKey: config.trendKey,
+            trendCount: config.trendCount,
+          },
           `13_SubRank_Page${pageNum}.mp4`,
           segments,
           duration,
@@ -262,6 +267,8 @@ async function renderSubRankBatch(chunks, segments, duration) {
   return results.filter(Boolean);
 }
 
+// ========== 主合成任务 ==========
+
 async function runSynthesisTask(date) {
   const { base, segments, final } = getPaths(date);
   const dataFile = path.join(DIR_DATA, `${date}.json`);
@@ -273,6 +280,10 @@ async function runSynthesisTask(date) {
     ? await fs.readJson(infoFile)
     : {};
 
+  // 获取期刊配置
+  const config = getIssueConfig(date, infoData);
+  log(`期刊类型: ${config.name} (${config._type})`);
+
   const totalSteps = 70;
   updateProgress("准备", 0, totalSteps);
 
@@ -283,183 +294,225 @@ async function runSynthesisTask(date) {
 
   let progressCounter = 0;
 
-  // 封面选择
+  // ========== 封面选择 ==========
   let introCover = "";
   if (infoData.cover && infoData.cover.image_url) {
     introCover = await downloadImage(infoData.cover.image_url);
     log(`封面: 使用指定 ${infoData.cover.bvid}`);
   } else {
-    const mainRankList = data.total_rank_top20 || [];
-    const firstAppearSong = mainRankList.find((s) => s.count === 1);
+    const mainRankField = config.dataFields?.mainRank || "total_rank_top20";
+    const mainRankList = data[mainRankField] || [];
+    const firstAppearSong = config.showCount
+      ? mainRankList.find((s) => s.count === 1)
+      : mainRankList[0];
     if (firstAppearSong) {
       introCover = await downloadImage(firstAppearSong.image_url);
-      log(`封面: 主榜首上榜 #${firstAppearSong.rank}`);
-    } else if (mainRankList.length > 0) {
-      introCover = await downloadImage(mainRankList[0].image_url);
-      log("封面: 主榜第一");
+      log(
+        `封面: ${config.showCount ? `主榜首上榜 #${firstAppearSong.rank}` : "主榜第一"}`,
+      );
     }
   }
 
-  // 生成视频封面
-  const coverFrame = DUR_INTRO * FPS - 31;
-  const coverFileName = `${date}.png`;
-  const coverPath = path.join(base, coverFileName);
-  if (fs.existsSync(coverPath)) {
-    fs.unlinkSync(coverPath);
-    log("删除旧封面，重新生成");
-  }
-  await renderStill(
-    "Intro",
-    { issue: `#${data.index}`, date: data.date, coverImg: introCover },
-    coverFileName,
-    base,
-    coverFrame,
-  );
-  updateProgress("封面", ++progressCounter, totalSteps);
-
   // ========== 准备素材阶段 ==========
-  const newRankList = (data.new_rank_top10 || []).slice(0, 10);
-  const mainRankList = (data.total_rank_top20 || []).slice(0, 20);
+  const newRankField = config.dataFields?.newRank || "new_rank_top10";
+  const mainRankField = config.dataFields?.mainRank || "total_rank_top20";
+
+  const newRankList = config.sections.newRank?.enabled
+    ? (data[newRankField] || []).slice(0, config.newRankCount)
+    : [];
+  const mainRankList = config.sections.mainRank?.enabled
+    ? (data[mainRankField] || []).slice(0, config.mainRankCount)
+    : [];
 
   newRankList.forEach((s) => (s._defaultDuration = 20));
   mainRankList.forEach((s) => (s._defaultDuration = 20));
 
   const allSongs = [...newRankList, ...mainRankList];
 
-  await prepareAllAssets(allSongs, (current, total) => {
-    updateProgress(`素材 ${current}/${total}`, progressCounter, totalSteps);
-  });
+  if (allSongs.length > 0) {
+    await prepareAllAssets(allSongs, (current, total) => {
+      updateProgress(`素材 ${current}/${total}`, progressCounter, totalSteps);
+    });
+  }
 
   progressCounter += 5;
   updateProgress("素材完成", progressCounter, totalSteps);
 
-  // ========== P1 渲染（所有都带淡入淡出）==========
+  // ========== P1 渲染 ==========
+  const renderFn = config.audioFade ? renderComposition : renderCompositionRaw;
 
-  // P1: Intro (3秒)
-  listP1.push(
-    await renderComposition(
-      "Intro",
-      { issue: `#${data.index}`, date: data.date, coverImg: introCover },
-      "01_Intro.mp4",
-      segments,
-      DUR_INTRO,
-    ),
-  );
-  updateProgress("片头", ++progressCounter, totalSteps);
+  // P1: Intro
+  if (config.sections.intro?.enabled) {
+    listP1.push(
+      await renderFn(
+        "Intro",
+        {
+          issue: `#${data.index}`,
+          date: formatDate(date),
+          coverImg: introCover,
+          issueType: config._type,
+        },
+        "01_Intro.mp4",
+        segments,
+        config.sections.intro.duration || DUR_INTRO,
+      ),
+    );
+    updateProgress("片头", ++progressCounter, totalSteps);
+  }
 
-  // P1: InfoCard (5秒)
-  const opData = data.op || {};
-  const opCover = await downloadImage(opData.image_url);
-  listP1.push(
-    await renderComposition(
-      "InfoCard",
-      {
-        opLabel: "OP / 上期冠军",
-        opTitle: opData.title || "未知",
-        opArtist: opData.author || "Unknown",
-        opCover,
-        timeLabel: "统计时间",
-        timeRange: data.period,
-        note: infoData.script?.opening || `第${data.index}期`,
-      },
-      "02_InfoCard.mp4",
-      segments,
-      DUR_INFOCARD,
-    ),
-  );
-  updateProgress("信息卡", ++progressCounter, totalSteps);
+  // P1: InfoCard
+  if (config.sections.infoCard?.enabled) {
+    const opData = data.op || {};
+    const opCover = await downloadImage(opData.image_url);
+    listP1.push(
+      await renderFn(
+        "InfoCard",
+        {
+          opLabel: config.lastPeriodLabel
+            ? `OP / ${config.lastPeriodLabel}冠军`
+            : "OP / 上期冠军",
+          opTitle: opData.title || "未知",
+          opArtist: opData.author || "Unknown",
+          opCover,
+          timeLabel: "统计时间",
+          timeRange: data.period,
+          note: infoData.script?.opening || `第${data.index}期`,
+          issueType: config._type,
+        },
+        "02_InfoCard.mp4",
+        segments,
+        config.sections.infoCard.duration || 5,
+      ),
+    );
+    updateProgress("信息卡", ++progressCounter, totalSteps);
+  }
 
-  // P1: 规则页面 (35秒)
-  listP1.push(
-    await renderComposition(
-      "RulesAndAchivements",
-      {},
-      "03_Rules.mp4",
-      segments,
-      DUR_RULES,
-    ),
-  );
-  updateProgress("规则页", ++progressCounter, totalSteps);
+  // P1: 规则页面
+  if (config.sections.rules?.enabled) {
+    listP1.push(
+      await renderComposition(
+        "RulesAndAchivements",
+        {
+          issueType: config._type, // "weekly" | "monthly" | "special"
+        },
+        "03_Rules.mp4",
+        segments,
+        config.sections.rules.duration || DUR_RULES,
+      ),
+    );
+  }
 
-  // P1: 新曲榜标题 (2秒)
-  listP1.push(
-    await renderComposition(
-      "SectionTitle",
-      {
-        title: "新曲榜 Top 10",
-        from: 10,
-        to: 1,
-        themeColor: "#23ade5",
-        edName: "",
-        edAuthor: "",
-      },
-      "04_SectionTitle_New.mp4",
-      segments,
-      DUR_SECTION_TITLE,
-    ),
-  );
-  updateProgress("新曲榜标题", ++progressCounter, totalSteps);
+  // P1: 新曲榜标题
+  if (config.sections.newRankTitle?.enabled && newRankList.length > 0) {
+    const titleConfig = config.sections.newRankTitle;
+    listP1.push(
+      await renderFn(
+        "SectionTitle",
+        {
+          title: config.newRankTitleFull || `新曲榜 Top ${config.newRankCount}`,
+          from: config.newRankCount,
+          to: 1,
+          themeColor: titleConfig.color || "#23ade5",
+          edName: "",
+          edAuthor: "",
+        },
+        "04_SectionTitle_New.mp4",
+        segments,
+        titleConfig.duration || DUR_SECTION_TITLE,
+      ),
+    );
+    updateProgress("新曲榜标题", ++progressCounter, totalSteps);
+  }
 
   // ========== P2 渲染 ==========
 
-  // P2-A: 新曲榜卡片（内置淡入淡出）
-  const reversedNewList = [...newRankList].reverse();
-  const newRankResults = await renderRankBatch(
-    reversedNewList,
-    "new",
-    segments,
-  );
-  listP2.push(...newRankResults);
-  progressCounter += reversedNewList.length;
-  updateProgress("新曲榜完成", progressCounter, totalSteps);
-
-  // P2-B: 主榜标题 (2秒)
-  listP2.push(
-    await renderComposition(
-      "SectionTitle",
-      {
-        title: "主榜 Top 20",
-        from: 20,
-        to: 1,
-        themeColor: "#f25d8e",
-        edName: "",
-        edAuthor: "",
-      },
-      "05_SectionTitle_Main.mp4",
+  // P2-A: 新曲榜卡片
+  if (config.sections.newRank?.enabled && newRankList.length > 0) {
+    const reversedNewList = [...newRankList].reverse();
+    const newRankResults = await renderRankBatch(
+      reversedNewList,
+      "new",
       segments,
-      DUR_SECTION_TITLE,
-    ),
-  );
+      config,
+    );
+    listP2.push(...newRankResults);
+    progressCounter += reversedNewList.length;
+    updateProgress("新曲榜完成", progressCounter, totalSteps);
+  }
 
-  // P2-C: 主榜卡片（内置淡入淡出）
-  const reversedMainList = [...mainRankList].reverse();
-  const mainRankResults = await renderRankBatch(
-    reversedMainList,
-    "main",
-    segments,
-  );
-  listP2.push(...mainRankResults);
-  progressCounter += reversedMainList.length;
-  updateProgress("主榜完成", progressCounter, totalSteps);
+  // P2-B: 主榜标题
+  if (config.sections.mainRankTitle?.enabled && mainRankList.length > 0) {
+    const titleConfig = config.sections.mainRankTitle;
+    listP2.push(
+      await renderFn(
+        "SectionTitle",
+        {
+          title: config.mainRankTitleFull || `主榜 Top ${config.mainRankCount}`,
+          from: config.mainRankCount,
+          to: 1,
+          themeColor: titleConfig.color || "#f25d8e",
+          edName: "",
+          edAuthor: "",
+        },
+        "05_SectionTitle_Main.mp4",
+        segments,
+        titleConfig.duration || DUR_SECTION_TITLE,
+      ),
+    );
+  }
+
+  // P2-C: 主榜卡片
+  if (config.sections.mainRank?.enabled && mainRankList.length > 0) {
+    const reversedMainList = [...mainRankList].reverse();
+    const mainRankResults = await renderRankBatch(
+      reversedMainList,
+      "main",
+      segments,
+      config,
+    );
+    listP2.push(...mainRankResults);
+    progressCounter += reversedMainList.length;
+    updateProgress("主榜完成", progressCounter, totalSteps);
+  }
 
   // ========== P3 前段计算 ==========
+
+  // 百万达成
   const milList = (data.million_record || []).sort(
     (a, b) => b.million_crossed - a.million_crossed,
   );
   const milChunks = chunkArray(milList, 5);
 
-  const achList = data.achievement_record || [];
+  // 成就达成 (仅周刊)
+  const achList = config.sections.achievementRank?.enabled
+    ? data.achievement_record || []
+    : [];
   const achChunks = chunkArray(achList, 5);
 
-  const p3PreFixedCount = 4;
+  // 计算 P3 前段固定部分数量
+  let p3PreFixedCount = 0;
+  if (config.sections.singerRank?.enabled) p3PreFixedCount++;
+  if (config.sections.historyRank?.enabled) p3PreFixedCount++;
+  if (config.sections.statsCard?.enabled) p3PreFixedCount++;
+  if (config.sections.staffCard?.enabled) p3PreFixedCount++;
+
   const p3PreDynamicCount = milChunks.length + achChunks.length;
   const p3PreDuration =
     (p3PreFixedCount + p3PreDynamicCount) * DUR_SHORT + DUR_SECTION_TITLE;
 
-  const subList = (data.total_rank_sub || [])
-    .filter((i) => i.rank >= 21 && i.rank <= 100)
-    .sort((a, b) => a.rank - b.rank);
-  const subChunks = chunkArray(subList, 4);
+  // 副榜
+  const subRankField = config.dataFields?.subRank || "total_rank_sub";
+  const subList =
+    config.sections.subRank?.enabled && config.subRankRange
+      ? (data[subRankField] || [])
+          .filter(
+            (i) =>
+              i.rank >= config.subRankRange[0] &&
+              i.rank <= config.subRankRange[1],
+          )
+          .sort((a, b) => a.rank - b.rank)
+      : [];
+  const subChunks = chunkArray(subList, config.subRankPerPage || 4);
   const subChunkCount = subChunks.length;
 
   // 计算副榜每页时长
@@ -482,22 +535,24 @@ async function runSynthesisTask(date) {
   }
 
   // P3-Pre: 歌手排名
-  const singerList = (data.vocal_stats || []).map((s) => ({
-    ...s,
-    avatar: `http://localhost:${PORT}/downloads/avatar/${encodeURIComponent(s.name)}.png`,
-  }));
-  listP3_pre.push(
-    await renderComposition(
-      "SingerRank",
-      { list: singerList },
-      "06_SingerRank.mp4",
-      segments,
-      DUR_SHORT,
-    ),
-  );
+  if (config.sections.singerRank?.enabled) {
+    const singerList = (data.vocal_stats || []).map((s) => ({
+      ...s,
+      avatar: `http://localhost:${PORT}/downloads/avatar/${encodeURIComponent(s.name)}.png`,
+    }));
+    listP3_pre.push(
+      await renderFn(
+        "SingerRank",
+        { list: singerList },
+        "06_SingerRank.mp4",
+        segments,
+        DUR_SHORT,
+      ),
+    );
+  }
 
   // P3-Pre: 百万达成
-  if (milChunks.length > 0) {
+  if (config.sections.millionRank?.enabled && milChunks.length > 0) {
     for (let i = 0; i < milChunks.length; i++) {
       const processed = await Promise.all(
         milChunks[i].map(async (item) => ({
@@ -506,7 +561,7 @@ async function runSynthesisTask(date) {
         })),
       );
       listP3_pre.push(
-        await renderComposition(
+        await renderFn(
           "MillionRank",
           { list: processed },
           `07_MillionRank_Page${i + 1}.mp4`,
@@ -517,8 +572,8 @@ async function runSynthesisTask(date) {
     }
   }
 
-  // P3-Pre: 成就达成
-  if (achChunks.length > 0) {
+  // P3-Pre: 成就达成 (仅周刊)
+  if (config.sections.achievementRank?.enabled && achChunks.length > 0) {
     for (let i = 0; i < achChunks.length; i++) {
       const processed = await Promise.all(
         achChunks[i].map(async (item) => ({
@@ -527,7 +582,7 @@ async function runSynthesisTask(date) {
         })),
       );
       listP3_pre.push(
-        await renderComposition(
+        await renderFn(
           "AchievementRank",
           { list: processed },
           `08_AchievementRank_Page${i + 1}.mp4`,
@@ -539,81 +594,96 @@ async function runSynthesisTask(date) {
   }
 
   // P3-Pre: 历史回顾
-  const historyList = data.history_record || [];
-
-  const historyProcessed = await Promise.all(
-    historyList.map(async (item) => ({
-      ...item,
-      image_url: await downloadImage(item.image_url),
-    })),
-  );
-  listP3_pre.push(
-    await renderComposition(
-      "HistoryRank",
-      { list: historyProcessed },
-      "09_HistoryRank.mp4",
-      segments,
-      DUR_SHORT,
-    ),
-  );
+  if (config.sections.historyRank?.enabled) {
+    const historyList = data.history_record || [];
+    const historyProcessed = await Promise.all(
+      historyList.map(async (item) => ({
+        ...item,
+        image_url: await downloadImage(item.image_url),
+      })),
+    );
+    listP3_pre.push(
+      await renderFn(
+        "HistoryRank",
+        { list: historyProcessed },
+        "09_HistoryRank.mp4",
+        segments,
+        DUR_SHORT,
+      ),
+    );
+  }
 
   // P3-Pre: 数据统计
-  listP3_pre.push(
-    await renderComposition(
-      "StatsCard",
-      {
-        stat: data.stat,
-        comment: infoData.script?.ending || data.comment,
-      },
-      "10_StatsCard.mp4",
-      segments,
-      DUR_SHORT,
-    ),
-  );
+  if (config.sections.statsCard?.enabled) {
+    listP3_pre.push(
+      await renderFn(
+        "StatsCard",
+        {
+          stat: data.stat,
+          comment: infoData.script?.ending || data.comment || "",
+          topN: config.topN || config.subRankMax || 100,
+          scoreThresholds: config.scoreThresholds,
+          newSongPeriod: config.newSongPeriod,
+        },
+        "10_StatsCard.mp4",
+        segments,
+        DUR_SHORT,
+      ),
+    );
+  }
 
   // P3-Pre: Staff
-  listP3_pre.push(
-    await renderComposition(
-      "StaffCard",
-      {
-        staffList: STAFF_LIST.map((s) => ({
-          ...s,
-          avatar: `http://localhost:${PORT}/downloads/STAFF/${encodeURIComponent(s.name)}.jpg`,
-        })),
-      },
-      "11_StaffCard.mp4",
-      segments,
-      DUR_SHORT,
-    ),
-  );
+  if (config.sections.staffCard?.enabled) {
+    listP3_pre.push(
+      await renderFn(
+        "StaffCard",
+        {
+          staffList: STAFF_LIST.map((s) => ({
+            ...s,
+            avatar: `http://localhost:${PORT}/downloads/STAFF/${encodeURIComponent(s.name)}.jpg`,
+          })),
+        },
+        "11_StaffCard.mp4",
+        segments,
+        DUR_SHORT,
+      ),
+    );
+  }
 
   // P3-Sub: 副榜标题
-  listP3_pre.push(
-    await renderComposition(
-      "SectionTitle",
-      {
-        title: "副榜 Top 100",
-        from: 21,
-        to: 100,
-        themeColor: "#66ccff",
-        edName: infoData.ed?.name || "",
-        edAuthor: infoData.ed?.author || "",
-      },
-      "12_SubRankTitle.mp4",
-      segments,
-      DUR_SECTION_TITLE,
-    ),
-  );
+  if (config.sections.subRankTitle?.enabled && subList.length > 0) {
+    const titleConfig = config.sections.subRankTitle;
+    listP3_pre.push(
+      await renderFn(
+        "SectionTitle",
+        {
+          title:
+            config.subRankTitleFull || `副榜 Top ${config.subRankMax || 100}`,
+          from: config.subRankRange ? config.subRankRange[0] : 21,
+          to: config.subRankRange ? config.subRankRange[1] : 100,
+          themeColor: titleConfig.color || "#66ccff",
+          edName: infoData.ed?.name || "",
+          edAuthor: infoData.ed?.author || "",
+        },
+        "12_SubRankTitle.mp4",
+        segments,
+        DUR_SECTION_TITLE,
+      ),
+    );
+  }
 
-  // P3-Sub: 副榜卡片（带淡入淡出）
-  const subRankResults = await renderSubRankBatch(
-    subChunks,
-    segments,
-    subDurationPerChunk,
-  );
-  listP3_sub.push(...subRankResults);
-  progressCounter += subChunkCount;
-  updateProgress("副榜完成", progressCounter, totalSteps);
+  // P3-Sub: 副榜卡片
+  if (config.sections.subRank?.enabled && subChunks.length > 0) {
+    const subRankResults = await renderSubRankBatch(
+      subChunks,
+      segments,
+      subDurationPerChunk,
+      config,
+    );
+    listP3_sub.push(...subRankResults);
+    progressCounter += subChunkCount;
+    updateProgress("副榜完成", progressCounter, totalSteps);
+  }
 
   // ========== 清理旧的合并产物 ==========
   const mergeProducts = [
@@ -639,68 +709,94 @@ async function runSynthesisTask(date) {
       log(`删除: ${file}`);
     }
   }
+  if (fs.existsSync(final)) {
+    fs.unlinkSync(final);
+    log(`删除: ${path.basename(final)}`);
+  }
+
   // ========== 合并阶段 ==========
   updateProgress("合并", totalSteps - 5, totalSteps);
 
-  log("合并 P1");
-  const p1Raw = await concatVideos(listP1, "p1_raw.mp4", segments);
-  let p1Final = p1Raw;
+  // P1 合并
+  let p1Final = null;
+  if (listP1.length > 0) {
+    log("合并 P1");
+    const p1Raw = await concatVideos(listP1, "p1_raw.mp4", segments);
+    p1Final = p1Raw;
 
-  if (opData.bvid) {
-    const opAudio = await downloadAudio(opData.bvid, `${opData.bvid}.mp3`);
-    if (opAudio && p1Raw) {
-      log("混音 OP");
-      p1Final = await processP1(p1Raw, opAudio, "p1_final.mp4", segments);
+    const opData = data.op || {};
+    if (opData.bvid) {
+      const opAudio = await downloadAudio(opData.bvid, `${opData.bvid}.mp3`);
+      if (opAudio && p1Raw) {
+        log("混音 OP");
+        p1Final = await processP1(p1Raw, opAudio, "p1_final.mp4", segments);
+      }
     }
   }
 
-  log("合并 P2");
-  const p2Final = await concatVideos(listP2, "p2_main.mp4", segments);
+  // P2 合并
+  let p2Final = null;
+  if (listP2.length > 0) {
+    log("合并 P2");
+    p2Final = await concatVideos(listP2, "p2_main.mp4", segments);
+  }
 
-  log("合并 P3");
-  const p3Pre = await concatVideos(listP3_pre, "p3_pre.mp4", segments);
-  const p3Sub = await concatVideos(listP3_sub, "p3_sub_raw.mp4", segments);
+  // P3 合并
   let p3Final = null;
+  if (listP3_pre.length > 0 || listP3_sub.length > 0) {
+    log("合并 P3");
+    const p3Pre =
+      listP3_pre.length > 0
+        ? await concatVideos(listP3_pre, "p3_pre.mp4", segments)
+        : null;
+    const p3Sub =
+      listP3_sub.length > 0
+        ? await concatVideos(listP3_sub, "p3_sub_raw.mp4", segments)
+        : null;
 
-  if (infoData.ed && infoData.ed.bvid) {
-    const edAudio = await downloadAudio(
-      infoData.ed.bvid,
-      `${infoData.ed.bvid}.mp3`,
-    );
-    if (edAudio && p3Pre && p3Sub) {
-      log("混音 ED");
-      p3Final = await processP3(
-        p3Pre,
-        p3Sub,
-        edAudio,
-        "p3_final.mp4",
-        segments,
+    if (infoData.ed && infoData.ed.bvid && p3Pre && p3Sub) {
+      const edAudio = await downloadAudio(
+        infoData.ed.bvid,
+        `${infoData.ed.bvid}.mp3`,
       );
+      if (edAudio) {
+        log("混音 ED");
+        p3Final = await processP3(
+          p3Pre,
+          p3Sub,
+          edAudio,
+          "p3_final.mp4",
+          segments,
+        );
+      }
+    }
+
+    if (!p3Final) {
+      const p3Parts = [p3Pre, p3Sub].filter(Boolean);
+      if (p3Parts.length > 0) {
+        p3Final = await concatVideos(
+          p3Parts,
+          "p3_final_fallback.mp4",
+          segments,
+        );
+      }
     }
   }
 
-  if (!p3Final && p3Pre && p3Sub) {
-    p3Final = await concatVideos(
-      [p3Pre, p3Sub],
-      "p3_final_fallback.mp4",
-      segments,
-    );
-  }
-
+  // 最终合并
   updateProgress("最终合并", totalSteps - 1, totalSteps);
   log(`输出 ${final}`);
 
-  const finals = [p1Final, p2Final, p3Final].filter((p) => p);
+  const finals = [p1Final, p2Final, p3Final].filter(Boolean);
 
   if (finals.length === 3) {
     await finalMerge(finals[0], finals[1], finals[2], final);
-  } else {
+  } else if (finals.length > 0) {
     const listPath = path.join(segments, "files_final_fallback.txt");
     const content = finals
       .map((p) => `file '${p.replace(/\\/g, "/")}'`)
       .join("\n");
     fs.writeFileSync(listPath, content);
-    const { execPromise } = require("../utils/ffmpeg");
     await execPromise(
       `ffmpeg -f concat -safe 0 -i "${listPath}" -c copy "${final}" -y`,
     );

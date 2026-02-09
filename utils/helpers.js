@@ -2,6 +2,7 @@
 const path = require("path");
 const fs = require("fs-extra");
 const { DIR_VIDEO_ROOT } = require("../config");
+const { detectIssueType } = require("../config/issueTypes");
 
 function getPaths(date) {
   const base = path.join(DIR_VIDEO_ROOT, date);
@@ -28,8 +29,26 @@ function getCopyrightLabel(copyright) {
   return "搬运";
 }
 
+// 获取期刊类型
+function getIssueType(date) {
+  return detectIssueType(date);
+}
+
+// 格式化日期显示
+function formatDateDisplay(date, type) {
+  if (type === "weekly") {
+    return date; // 2026-01-17
+  } else if (type === "monthly") {
+    const [year, month] = date.split("-");
+    return `${year}年${parseInt(month)}月`;
+  }
+  return date;
+}
+
 module.exports = {
   getPaths,
   chunkArray,
   getCopyrightLabel,
+  getIssueType,
+  formatDateDisplay,
 };
