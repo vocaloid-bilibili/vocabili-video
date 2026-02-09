@@ -866,21 +866,21 @@
           listEl.innerHTML = files
             .map(
               (f) => `
-              <div class="file-item">
-                <div class="file-item-header">
-                  <span class="file-item-date">${f.date}</span>
-                  <div class="file-item-tags">
-                    <span class="file-item-tag ${f.issueType}">${f.issueTypeName}</span>
-                    <span class="file-item-tag ${f.infoFile ? "ok" : "warn"}">${f.infoFile ? "完整" : "缺Info"}</span>
+                <div class="file-item">
+                  <div class="file-item-header">
+                    <span class="file-item-date">${f.date}</span>
+                    <div class="file-item-tags">
+                      <span class="file-item-tag ${f.issueType}">${f.issueTypeName}</span>
+                      <span class="file-item-tag ${f.hasConfig ? "ok" : "warn"}">${f.hasConfig ? "已配置" : "未配置"}</span>
+                    </div>
                   </div>
+                  <div class="file-item-actions">
+                    <button class="btn btn-sm" onclick="triggerAction('merge','${f.date}')">仅合并</button>
+                    <button class="btn btn-sm btn-primary" onclick="triggerAction('start','${f.date}')">编辑合成</button>
+                  </div>
+                  ${f.hasVideo ? `<a class="file-item-download" href="/video/${f.date}/${f.date}.mp4" target="_blank">下载视频</a>` : ""}
                 </div>
-                <div class="file-item-actions">
-                  <button class="btn btn-sm" onclick="triggerAction('merge','${f.date}')">仅合并</button>
-                  <button class="btn btn-sm btn-primary" onclick="triggerAction('start','${f.date}')">编辑合成</button>
-                </div>
-                ${f.hasVideo ? `<a class="file-item-download" href="/video/${f.date}/${f.date}.mp4" target="_blank">下载视频</a>` : ""}
-              </div>
-            `,
+              `,
             )
             .join("");
         } catch (e) {

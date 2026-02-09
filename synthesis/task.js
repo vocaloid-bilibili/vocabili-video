@@ -268,20 +268,23 @@ async function renderSubRankBatch(chunks, segments, duration, config) {
 }
 
 // ========== 主合成任务 ==========
-
 async function runSynthesisTask(date) {
   const { base, segments, final } = getPaths(date);
   const dataFile = path.join(DIR_DATA, `${date}.json`);
-  const infoFile = path.join(DIR_DATA, `${date}信息.json`);
+  const configFile = path.join(DIR_DATA, `${date}_config.json`);
 
   log("读取数据");
   const data = await fs.readJson(dataFile);
-  const infoData = (await fs.pathExists(infoFile))
-    ? await fs.readJson(infoFile)
-    : {};
+
+  // 读取编辑器配置
+  let editorConfig = {};
+  if (await fs.pathExists(configFile)) {
+    editorConfig = await fs.readJson(configFile);
+    log("已加载编辑器配置");
+  }
 
   // 获取期刊配置
-  const config = getIssueConfig(date, infoData);
+  const config = getIssueConfig(date, {});
   log(`期刊类型: ${config.name} (${config._type})`);
 
   const totalSteps = 70;
@@ -296,9 +299,9 @@ async function runSynthesisTask(date) {
 
   // ========== 封面选择 ==========
   let introCover = "";
-  if (infoData.cover && infoData.cover.image_url) {
-    introCover = await downloadImage(infoData.cover.image_url);
-    log(`封面: 使用指定 ${infoData.cover.bvid}`);
+  if (editorConfig.cover && editorConfig.cover.image_url) {
+    introCover = await downloadImage(editorConfig.cover.image_url);
+    log(`封面: 使用指定 ${editorConfig.cover.bvid}`);
   } else {
     const mainRankField = config.dataFields?.mainRank || "total_rank_top20";
     const mainRankList = data[mainRankField] || [];
@@ -376,7 +379,7 @@ async function runSynthesisTask(date) {
           opCover,
           timeLabel: "统计时间",
           timeRange: data.period,
-          note: infoData.script?.opening || `第${data.index}期`,
+          note: editorConfig.script?.opening || `第${data.index}期`,
           issueType: config._type,
         },
         "02_InfoCard.mp4",
@@ -517,10 +520,10 @@ async function runSynthesisTask(date) {
 
   // 计算副榜每页时长
   let subDurationPerChunk = 3;
-  if (infoData.ed && infoData.ed.bvid) {
+  if (editorConfig.ed && editorConfig.ed.bvid) {
     const edAudioPath = await downloadAudio(
-      infoData.ed.bvid,
-      `${infoData.ed.bvid}.mp3`,
+      editorConfig.ed.bvid,
+      `${editorConfig.ed.bvid}.mp3`,
     );
     if (edAudioPath) {
       const edTotalDuration = await getDuration(edAudioPath);
@@ -620,7 +623,7 @@ async function runSynthesisTask(date) {
         "StatsCard",
         {
           stat: data.stat,
-          comment: infoData.script?.ending || data.comment || "",
+          comment: editorConfig.script?.ending || data.comment || "",
           topN: config.topN || config.subRankMax || 100,
           scoreThresholds: config.scoreThresholds,
           newSongPeriod: config.newSongPeriod,
@@ -662,8 +665,8 @@ async function runSynthesisTask(date) {
           from: config.subRankRange ? config.subRankRange[0] : 21,
           to: config.subRankRange ? config.subRankRange[1] : 100,
           themeColor: titleConfig.color || "#66ccff",
-          edName: infoData.ed?.name || "",
-          edAuthor: infoData.ed?.author || "",
+          edName: editorConfig.ed?.name || "",
+          edAuthor: editorConfig.ed?.author || "",
         },
         "12_SubRankTitle.mp4",
         segments,
@@ -754,10 +757,10 @@ async function runSynthesisTask(date) {
         ? await concatVideos(listP3_sub, "p3_sub_raw.mp4", segments)
         : null;
 
-    if (infoData.ed && infoData.ed.bvid && p3Pre && p3Sub) {
+    if (editorConfig.ed && editorConfig.ed.bvid && p3Pre && p3Sub) {
       const edAudio = await downloadAudio(
-        infoData.ed.bvid,
-        `${infoData.ed.bvid}.mp3`,
+        editorConfig.ed.bvid,
+        `${editorConfig.ed.bvid}.mp3`,
       );
       if (edAudio) {
         log("混音 ED");

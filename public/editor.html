@@ -90,8 +90,8 @@
 
       /* Song List */
       .song-list {
-        width: 320px;
-        min-width: 320px;
+        width: 360px;
+        min-width: 360px;
         background: #222;
         border-right: 1px solid #333;
         display: flex;
@@ -111,9 +111,40 @@
         font-size: 13px;
         color: #999;
       }
+      .song-list-tabs {
+        display: flex;
+        background: #1f1f1f;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+      .song-list-tab {
+        flex: 1;
+        padding: 10px;
+        text-align: center;
+        font-size: 12px;
+        cursor: pointer;
+        color: #888;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+      }
+      .song-list-tab:hover {
+        color: #ccc;
+        background: #252525;
+      }
+      .song-list-tab.active {
+        color: #4a9eff;
+        border-bottom-color: #4a9eff;
+        background: #222;
+      }
       .song-list-body {
         flex: 1;
         overflow-y: auto;
+      }
+      .song-list-panel {
+        display: none;
+      }
+      .song-list-panel.active {
+        display: block;
       }
       .song-group-title {
         padding: 8px 12px;
@@ -162,16 +193,44 @@
         flex: 1;
         min-width: 0;
       }
+      .song-title-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
       .song-title {
         font-size: 13px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0;
+      }
+      .song-link {
+        color: #666;
+        text-decoration: none;
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+      .song-link:hover {
+        color: #4a9eff;
       }
       .song-meta {
         font-size: 11px;
         color: #666;
         margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .song-bvid {
+        font-family: Consolas, monospace;
+        font-size: 10px;
+        color: #555;
+        cursor: pointer;
+      }
+      .song-bvid:hover {
+        color: #4a9eff;
       }
       .song-status {
         font-size: 10px;
@@ -179,10 +238,110 @@
         border-radius: 3px;
         background: #333;
         color: #888;
+        flex-shrink: 0;
       }
       .song-status.ready {
         background: #1a3a1a;
         color: #4a4;
+      }
+
+      /* Config Panel */
+      .config-panel {
+        padding: 12px;
+      }
+      .config-section {
+        margin-bottom: 16px;
+      }
+      .config-section-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #999;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #333;
+      }
+      .config-field {
+        margin-bottom: 12px;
+      }
+      .config-field label {
+        display: block;
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 4px;
+      }
+      .config-field input,
+      .config-field textarea {
+        width: 100%;
+        padding: 8px 10px;
+        background: #333;
+        border: 1px solid #444;
+        color: #fff;
+        font-size: 12px;
+        border-radius: 4px;
+        font-family: inherit;
+      }
+      .config-field input:focus,
+      .config-field textarea:focus {
+        outline: none;
+        border-color: #4a9eff;
+      }
+      .config-field textarea {
+        min-height: 60px;
+        resize: vertical;
+      }
+      .cover-options {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .cover-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        background: #2a2a2a;
+        border: 2px solid transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .cover-option:hover {
+        background: #333;
+      }
+      .cover-option.selected {
+        border-color: #4a9eff;
+        background: #2a3a4a;
+      }
+      .cover-option img {
+        width: 48px;
+        height: 30px;
+        object-fit: cover;
+        border-radius: 2px;
+        background: #1a1a1a;
+      }
+      .cover-option-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .cover-option-title {
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cover-option-tag {
+        font-size: 9px;
+        color: #888;
+      }
+      .config-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .config-actions .btn {
+        flex: 1;
       }
 
       /* Editor Panel  */
@@ -222,13 +381,52 @@
         color: #666;
       }
 
+      /* Song Detail Bar */
+      .song-detail-bar {
+        padding: 10px 20px;
+        background: #252525;
+        border-bottom: 1px solid #333;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-shrink: 0;
+      }
+      .song-detail-bar .detail-title {
+        font-size: 14px;
+        font-weight: 600;
+        max-width: 400px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .song-detail-bar .detail-meta {
+        font-size: 12px;
+        color: #888;
+        display: flex;
+        gap: 12px;
+      }
+      .song-detail-bar .detail-meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .song-detail-bar .detail-link {
+        margin-left: auto;
+        color: #4a9eff;
+        text-decoration: none;
+        font-size: 12px;
+      }
+      .song-detail-bar .detail-link:hover {
+        text-decoration: underline;
+      }
+
       /* Timeline - 修复溢出 */
       .timeline-container {
         padding: 16px 20px;
         background: #222;
         border-top: 1px solid #333;
         flex-shrink: 0;
-        overflow: hidden; /* 关键 */
+        overflow: hidden;
       }
       .timeline-header {
         display: flex;
@@ -260,7 +458,6 @@
         cursor: pointer;
       }
 
-      /* 时间线包装器 - 关键修复 */
       .timeline-wrapper {
         overflow-x: auto;
         overflow-y: hidden;
@@ -269,14 +466,12 @@
         position: relative;
       }
 
-      /* 时间线主体 - 增加高度 */
       .timeline {
         position: relative;
-        height: 100px; /* 增加高度 */
+        height: 100px;
         background: #333;
         border-radius: 4px;
         cursor: pointer;
-        /* 宽度由JS控制 */
       }
 
       .timeline-selection {
@@ -307,7 +502,6 @@
         border-top: 8px solid #ff4444;
       }
 
-      /* 手柄样式 */
       .timeline-handle {
         position: absolute;
         top: 0;
@@ -334,7 +528,7 @@
         right: 0;
       }
       .timeline-handle::after {
-        content: "⋮⋮";
+        content: "::";
         color: #fff;
         font-size: 10px;
         background: #4a9eff;
@@ -502,7 +696,7 @@
   </head>
   <body>
     <header>
-      <h1>🎬 片段编辑器</h1>
+      <h1>片段编辑器</h1>
       <div class="header-controls">
         <select id="dateSelect">
           <option value="">选择日期...</option>
@@ -519,12 +713,72 @@
     <main>
       <div class="song-list">
         <div class="song-list-header">
-          <span>歌曲列表</span>
+          <span>编辑器</span>
           <span id="clipProgress">0/30</span>
         </div>
-        <div class="song-list-body" id="songListBody">
-          <div style="padding: 40px; text-align: center; color: #666">
-            请先选择日期
+        <div class="song-list-tabs">
+          <div class="song-list-tab active" data-tab="songs">歌曲列表</div>
+          <div class="song-list-tab" data-tab="config">期刊配置</div>
+        </div>
+        <div class="song-list-body">
+          <!-- 歌曲列表面板 -->
+          <div class="song-list-panel active" id="panel-songs">
+            <div style="padding: 40px; text-align: center; color: #666">
+              请先选择日期
+            </div>
+          </div>
+          <!-- 配置面板 -->
+          <div class="song-list-panel" id="panel-config">
+            <div class="config-panel">
+              <div class="config-section">
+                <div class="config-section-title">旁白文案</div>
+                <div class="config-field">
+                  <label>开场旁白</label>
+                  <textarea
+                    id="scriptOpening"
+                    placeholder="显示在信息卡片上..."
+                  ></textarea>
+                </div>
+                <div class="config-field">
+                  <label>结尾评论</label>
+                  <textarea
+                    id="scriptEnding"
+                    placeholder="显示在统计卡片底部..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="config-section">
+                <div class="config-section-title">封面选择</div>
+                <div class="cover-options" id="coverOptions">
+                  <div style="color: #666; font-size: 11px; padding: 8px">
+                    请先选择日期
+                  </div>
+                </div>
+              </div>
+
+              <div class="config-section">
+                <div class="config-section-title">ED 配置</div>
+                <div class="config-field">
+                  <label>BV号</label>
+                  <input type="text" id="edBvid" placeholder="BV1xxxxxxxxx" />
+                </div>
+                <div class="config-field">
+                  <label>歌曲名称</label>
+                  <input type="text" id="edName" placeholder="ED歌曲名称" />
+                </div>
+                <div class="config-field">
+                  <label>作者</label>
+                  <input type="text" id="edAuthor" placeholder="ED作者" />
+                </div>
+              </div>
+
+              <div class="config-actions">
+                <button class="btn btn-primary" onclick="saveEditorConfig()">
+                  保存配置
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -543,6 +797,19 @@
             overflow: hidden;
           "
         >
+          <!-- 歌曲详情栏 -->
+          <div class="song-detail-bar" id="songDetailBar">
+            <span class="detail-title" id="detailTitle">-</span>
+            <div class="detail-meta">
+              <span id="detailBvid">-</span>
+              <span id="detailAuthor">-</span>
+              <span id="detailVocal">-</span>
+            </div>
+            <a class="detail-link" id="detailLink" href="#" target="_blank"
+              >在B站打开</a
+            >
+          </div>
+
           <div class="video-container">
             <video id="videoPlayer"></video>
             <div class="video-loading" id="videoLoading">加载中...</div>
@@ -594,7 +861,7 @@
                 id="setStartBtn"
                 title="I"
               >
-                ← 设起点
+                设起点
               </button>
             </div>
             <div class="control-group">
@@ -606,7 +873,7 @@
                 id="setEndBtn"
                 title="O"
               >
-                设终点 →
+                设终点
               </button>
             </div>
             <div class="control-group">
@@ -654,15 +921,13 @@
                 </button>
               </div>
               <div class="spacer"></div>
-              <button class="btn btn-success" id="previewBtn">
-                ▶ 预览片段
-              </button>
+              <button class="btn btn-success" id="previewBtn">预览片段</button>
               <button
                 class="btn btn-secondary"
                 id="stopPreviewBtn"
                 style="display: none"
               >
-                ⏹ 停止
+                停止
               </button>
             </div>
           </div>
@@ -694,6 +959,13 @@
       let isPreviewMode = false;
       let previewEndTime = 0;
 
+      // 编辑器配置
+      let editorConfig = {
+        cover: null,
+        ed: { bvid: "", name: "", author: "" },
+        script: { opening: "", ending: "" },
+      };
+
       async function fetchAPI(url, opts = {}) {
         opts.headers = opts.headers || {};
         opts.headers["x-api-key"] = API_KEY;
@@ -722,6 +994,7 @@
         await loadDates();
         setupEventListeners();
         setupKeyboardShortcuts();
+        setupTabs();
 
         const urlParams = new URLSearchParams(window.location.search);
         const dateParam = urlParams.get("date");
@@ -730,6 +1003,23 @@
           onDateChange();
         }
       });
+
+      function setupTabs() {
+        document.querySelectorAll(".song-list-tab").forEach((tab) => {
+          tab.addEventListener("click", () => {
+            document
+              .querySelectorAll(".song-list-tab")
+              .forEach((t) => t.classList.remove("active"));
+            document
+              .querySelectorAll(".song-list-panel")
+              .forEach((p) => p.classList.remove("active"));
+            tab.classList.add("active");
+            document
+              .getElementById(`panel-${tab.dataset.tab}`)
+              .classList.add("active");
+          });
+        });
+      }
 
       async function loadDates() {
         try {
@@ -824,7 +1114,6 @@
           const data = await fetchAPI(`${API}/songs/${currentDate}`);
           songs = data.songs;
 
-          // 显示类型信息
           const config = data.config;
           const typeInfo =
             data.issueType === "weekly"
@@ -833,10 +1122,13 @@
                 ? "月刊"
                 : "特刊";
           document.querySelector("header h1").innerHTML =
-            `片段编辑器 <span style="font-size: 14px; color: #888; margin-left: 12px;">${typeInfo} - ${currentDate} (新曲${config.newRankCount}名, 主榜${config.mainRankCount}名)</span>`;
+            `片段编辑器 <span style="font-size: 14px; color: #888; margin-left: 12px;">${typeInfo} - ${currentDate} (新曲${config.newRankCount}首, 主榜${config.mainRankCount}首)</span>`;
 
           renderSongList();
+          renderCoverOptions();
           updateClipProgress();
+          await loadEditorConfig();
+
           document.getElementById("downloadAllBtn").disabled = false;
           document.getElementById("startSynthesisBtn").disabled = false;
         } catch (e) {
@@ -844,8 +1136,53 @@
         }
       }
 
+      async function loadEditorConfig() {
+        try {
+          const saved = await fetchAPI(`${API}/editor-config/${currentDate}`);
+          if (saved && !saved.error) {
+            editorConfig = { ...editorConfig, ...saved };
+            document.getElementById("scriptOpening").value =
+              editorConfig.script?.opening || "";
+            document.getElementById("scriptEnding").value =
+              editorConfig.script?.ending || "";
+            document.getElementById("edBvid").value =
+              editorConfig.ed?.bvid || "";
+            document.getElementById("edName").value =
+              editorConfig.ed?.name || "";
+            document.getElementById("edAuthor").value =
+              editorConfig.ed?.author || "";
+            renderCoverOptions();
+          }
+        } catch (e) {
+          // 配置不存在，使用默认值
+        }
+      }
+
+      async function saveEditorConfig() {
+        editorConfig.script = {
+          opening: document.getElementById("scriptOpening").value,
+          ending: document.getElementById("scriptEnding").value,
+        };
+        editorConfig.ed = {
+          bvid: document.getElementById("edBvid").value,
+          name: document.getElementById("edName").value,
+          author: document.getElementById("edAuthor").value,
+        };
+
+        try {
+          await fetchAPI(`${API}/editor-config/${currentDate}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(editorConfig),
+          });
+          showToast("配置已保存", "success");
+        } catch (e) {
+          showToast("保存失败: " + e.message, "error");
+        }
+      }
+
       function renderSongList() {
-        const container = document.getElementById("songListBody");
+        const container = document.getElementById("panel-songs");
         const renderGroup = (list, title) => {
           if (!list.length) return "";
           return `
@@ -856,17 +1193,21 @@
       <div class="song-item ${s._clip ? "has-clip" : ""}" data-bvid="${s.bvid}">
         <div class="song-rank">${s.rank}</div>
         <div class="song-info">
-          <div class="song-title">${s.title || s.name}</div>
-          <div class="song-meta">${s.author || s.vocal || "Unknown"}</div>
+          <div class="song-title-row">
+            <span class="song-title" title="${s.title || s.name}">${s.title || s.name}</span>
+          </div>
+          <div class="song-meta">
+            <span class="song-bvid" onclick="event.stopPropagation(); copyBvid('${s.bvid}')" title="点击复制">${s.bvid}</span>
+            · ${s.author || s.vocal || s.uploader || "Unknown"}
+          </div>
         </div>
-        <div class="song-status ${s._videoExists ? "ready" : ""}">${s._videoExists ? "✓" : "○"}</div>
+        <div class="song-status ${s._videoExists ? "ready" : ""}">${s._videoExists ? "OK" : "--"}</div>
       </div>
     `,
       )
       .join("")}`;
         };
 
-        // 动态标题
         const newTitle =
           songs.newRank.length > 0 ? `新曲榜 Top ${songs.newRank.length}` : "";
         const mainTitle =
@@ -878,6 +1219,58 @@
         container.querySelectorAll(".song-item").forEach((el) => {
           el.addEventListener("click", () => selectSong(el.dataset.bvid));
         });
+      }
+
+      function renderCoverOptions() {
+        const container = document.getElementById("coverOptions");
+        const { mainRank } = songs;
+        if (!mainRank || mainRank.length === 0) {
+          container.innerHTML =
+            '<div style="color: #666; font-size: 11px; padding: 8px;">请先选择日期</div>';
+          return;
+        }
+
+        const candidates = [];
+        mainRank.slice(0, 5).forEach((s) => {
+          candidates.push({ ...s, reason: `#${s.rank}` });
+        });
+
+        const firstAppear = mainRank.find((s) => s.count === 1);
+        if (
+          firstAppear &&
+          !candidates.find((c) => c.bvid === firstAppear.bvid)
+        ) {
+          candidates.push({ ...firstAppear, reason: "首上榜" });
+        }
+
+        container.innerHTML = candidates
+          .map((s) => {
+            const isSelected = editorConfig.cover?.bvid === s.bvid;
+            return `
+      <div class="cover-option ${isSelected ? "selected" : ""}" onclick="selectCover('${s.bvid}')">
+        <img src="${s.image_url}" alt="" referrerpolicy="no-referrer">
+        <div class="cover-option-info">
+          <div class="cover-option-title">${s.title || s.name}</div>
+          <div class="cover-option-tag">${s.reason}</div>
+        </div>
+      </div>
+    `;
+          })
+          .join("");
+      }
+      function selectCover(bvid) {
+        const allSongs = [...(songs.newRank || []), ...songs.mainRank];
+        const song = allSongs.find((s) => s.bvid === bvid);
+        if (song) {
+          editorConfig.cover = { bvid: song.bvid, image_url: song.image_url };
+          renderCoverOptions();
+          showToast("已选择封面", "success");
+        }
+      }
+
+      function copyBvid(bvid) {
+        navigator.clipboard.writeText(bvid);
+        showToast("已复制 " + bvid, "success");
       }
 
       function updateClipProgress() {
@@ -900,6 +1293,17 @@
         document.getElementById("editorEmpty").style.display = "none";
         document.getElementById("editorContent").style.display = "flex";
 
+        // 更新详情栏
+        document.getElementById("detailTitle").textContent =
+          currentSong.title || currentSong.name;
+        document.getElementById("detailBvid").textContent = currentSong.bvid;
+        document.getElementById("detailAuthor").textContent =
+          currentSong.author || currentSong.uploader || "-";
+        document.getElementById("detailVocal").textContent =
+          currentSong.vocal || "-";
+        document.getElementById("detailLink").href =
+          `https://www.bilibili.com/video/${currentSong.bvid}`;
+
         const video = document.getElementById("videoPlayer");
         const loading = document.getElementById("videoLoading");
 
@@ -920,7 +1324,7 @@
               `.song-item[data-bvid="${bvid}"]`,
             );
             if (listItem) {
-              listItem.querySelector(".song-status").textContent = "✓";
+              listItem.querySelector(".song-status").textContent = "OK";
               listItem.querySelector(".song-status").classList.add("ready");
             }
           } catch (e) {
@@ -970,7 +1374,6 @@
         if (!video || videoDuration <= 0) return;
 
         let start = video.currentTime;
-
         let end = start + clipDuration;
 
         if (end > videoDuration) {
@@ -1087,7 +1490,6 @@
         const timeline = document.getElementById("timeline");
         const wrapper = document.getElementById("timelineWrapper");
         const baseWidth = wrapper.clientWidth || 600;
-        // 设置实际宽度，不用 min-width
         timeline.style.width = Math.floor(baseWidth * zoomLevel) + "px";
       }
 
@@ -1130,9 +1532,7 @@
         selection.style.left = startPct + "%";
         selection.style.width = endPct - startPct + "%";
 
-        // 左手柄：左边缘对齐起点
         handleStart.style.left = startPct + "%";
-        // 右手柄：右边缘对齐终点
         handleEnd.style.left = `calc(${endPct}% - 16px)`;
       }
 
@@ -1171,7 +1571,6 @@
         const handleStart = document.getElementById("handleStart");
         const handleEnd = document.getElementById("handleEnd");
 
-        // 播放头更新
         video.addEventListener("timeupdate", () => {
           if (videoDuration > 0) {
             const pct = (video.currentTime / videoDuration) * 100;
@@ -1187,7 +1586,6 @@
           }
         });
 
-        // 点击跳转
         timeline.addEventListener("click", (e) => {
           if (e.target.closest(".timeline-handle")) return;
           const rect = timeline.getBoundingClientRect();
@@ -1198,7 +1596,6 @@
           );
         });
 
-        // 中键/Alt+左键 拖动平移
         let isDraggingTimeline = false;
         let dragStartX = 0;
         let scrollStart = 0;
@@ -1227,25 +1624,21 @@
           }
         });
 
-        // 滚轮：缩放或平移
         wrapper.addEventListener(
           "wheel",
           (e) => {
             e.preventDefault();
 
-            // Shift+滚轮 = 平移
             if (e.shiftKey) {
               wrapper.scrollLeft += e.deltaY;
               return;
             }
 
-            // 横向滚动 = 平移
             if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
               wrapper.scrollLeft += e.deltaX;
               return;
             }
 
-            // 普通滚轮 = 缩放
             const slider = document.getElementById("zoomSlider");
             const rect = wrapper.getBoundingClientRect();
             const mouseXInWrapper = e.clientX - rect.left;
@@ -1255,7 +1648,6 @@
                 ? mouseXInTimeline / wrapper.scrollWidth
                 : 0;
 
-            // 关键修复：deltaY > 0 向下滚 = 缩小，deltaY < 0 向上滚 = 放大
             const delta = e.deltaY < 0 ? 0.5 : -0.5;
             let newZoom = zoomLevel + delta;
             newZoom = Math.max(1, Math.min(10, newZoom));
@@ -1282,7 +1674,6 @@
           { passive: false },
         );
 
-        // ========== 手柄拖动 ==========
         let dragging = null;
 
         const onHandleMouseMove = (e) => {
@@ -1293,14 +1684,12 @@
           const time = pct * videoDuration;
 
           if (dragging === "start") {
-            // 【定长模式】：起点移动，终点跟着动，保持 clipDuration 不变
             let newStart = Math.max(
               0,
               Math.min(time, videoDuration - clipDuration),
             );
             let newEnd = newStart + clipDuration;
 
-            // 确保不超出边界
             if (newEnd > videoDuration) {
               newEnd = videoDuration;
               newStart = newEnd - clipDuration;
@@ -1310,7 +1699,6 @@
               newStart.toFixed(2);
             document.getElementById("endTimeInput").value = newEnd.toFixed(2);
           } else {
-            // 【变长模式】：只改终点，起点不动
             const start = parseFloat(
               document.getElementById("startTimeInput").value,
             );
@@ -1464,7 +1852,7 @@
                   `.song-item[data-bvid="${s.bvid}"]`,
                 );
                 if (listItem && s._videoExists) {
-                  listItem.querySelector(".song-status").textContent = "✓";
+                  listItem.querySelector(".song-status").textContent = "OK";
                   listItem.querySelector(".song-status").classList.add("ready");
                 }
                 const localSong = [...songs.newRank, ...songs.mainRank].find(
@@ -1498,7 +1886,9 @@
 
       async function startSynthesis() {
         if (!currentDate) return;
-        if (!confirm("确认开始合成？")) return;
+
+        // 先保存配置
+        await saveEditorConfig();
 
         try {
           await fetchAPI(`${API}/synthesis/start`, {

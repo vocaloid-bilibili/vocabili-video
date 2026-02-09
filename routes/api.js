@@ -88,7 +88,6 @@ router.get("/files", async (req, res) => {
   try {
     const files = await fs.readdir(DIR_DATA);
 
-    // 匹配周刊 (2026-01-17.json) 和月刊 (2026-01.json)
     const dataFiles = files.filter((f) =>
       /^\d{4}-\d{2}(-\d{2})?\.json$/.test(f),
     );
@@ -99,13 +98,14 @@ router.get("/files", async (req, res) => {
         const { final } = getPaths(date);
         const hasVideo = await fs.pathExists(final);
         const issueType = detectIssueType(date);
+        const hasConfig = await fs.pathExists(
+          path.join(DIR_DATA, `${date}_config.json`),
+        );
 
         return {
           date,
           dataFile: f,
-          infoFile: files.includes(`${date}信息.json`)
-            ? `${date}信息.json`
-            : null,
+          hasConfig,
           hasVideo,
           issueType,
           issueTypeName:
@@ -123,7 +123,6 @@ router.get("/files", async (req, res) => {
     res.status(500).send({ error: e.message });
   }
 });
-
 // ========== 分片管理API ==========
 
 // 获取分片列表
@@ -346,22 +345,6 @@ router.delete("/clips/:bvid", (req, res) => {
 // ========== 视频下载API ==========
 
 // 下载完整视频（用于预览）
-router.post("/full-video/:bvid", async (req, res) => {
-  const { bvid } = req.params;
-
-  try {
-    const result = await downloadFullVideo(bvid);
-    if (result) {
-      res.send({ success: true, ...result });
-    } else {
-      res.status(500).send({ error: "下载失败" });
-    }
-  } catch (e) {
-    res.status(500).send({ error: e.message });
-  }
-});
-
-// 批量下载完整视频
 router.post("/full-video/batch", async (req, res) => {
   const { bvids } = req.body;
   if (!Array.isArray(bvids)) {
@@ -379,6 +362,20 @@ router.post("/full-video/batch", async (req, res) => {
   }
 });
 
+router.post("/full-video/:bvid", async (req, res) => {
+  const { bvid } = req.params;
+
+  try {
+    const result = await downloadFullVideo(bvid);
+    if (result) {
+      res.send({ success: true, ...result });
+    } else {
+      res.status(500).send({ error: "下载失败" });
+    }
+  } catch (e) {
+    res.status(500).send({ error: e.message });
+  }
+});
 // 自动分析高潮点（调用Python）
 router.post("/analyze/:bvid", async (req, res) => {
   const { bvid } = req.params;
@@ -403,6 +400,36 @@ router.get("/issue-config/:date", async (req, res) => {
     const infoData = fs.existsSync(infoFile) ? await fs.readJson(infoFile) : {};
     const config = getIssueConfig(date, infoData);
     res.send(config);
+  } catch (e) {
+    res.status(500).send({ error: e.message });
+  }
+});
+
+router.get("/editor-config/:date", async (req, res) => {
+  const { date } = req.params;
+  const configFile = path.join(DIR_DATA, `${date}_config.json`);
+
+  try {
+    if (await fs.pathExists(configFile)) {
+      const config = await fs.readJson(configFile);
+      res.send(config);
+    } else {
+      res.send({ error: "not_found" });
+    }
+  } catch (e) {
+    res.status(500).send({ error: e.message });
+  }
+});
+
+// 保存编辑器配置
+router.post("/editor-config/:date", async (req, res) => {
+  const { date } = req.params;
+  const configFile = path.join(DIR_DATA, `${date}_config.json`);
+
+  try {
+    await fs.writeJson(configFile, req.body, { spaces: 2 });
+    log(`保存编辑器配置: ${date}`);
+    res.send({ success: true });
   } catch (e) {
     res.status(500).send({ error: e.message });
   }
