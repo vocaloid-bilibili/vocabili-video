@@ -316,6 +316,31 @@ async function runSynthesisTask(date) {
     }
   }
 
+  // ========== 生成视频封面 ==========
+  const coverFrame = (config.sections.intro?.duration || DUR_INTRO) * FPS - 31;
+  const coverFileName = `${date}.png`;
+  const coverPath = path.join(base, coverFileName);
+
+  if (fs.existsSync(coverPath)) {
+    fs.unlinkSync(coverPath);
+    log("删除旧封面，重新生成");
+  }
+
+  await renderStill(
+    "Intro",
+    {
+      issue: `#${data.index}`,
+      date: formatDate(date),
+      coverImg: introCover,
+      issueType: config._type,
+    },
+    coverFileName,
+    base,
+    coverFrame,
+  );
+  log(`封面已生成: ${coverFileName}`);
+  updateProgress("封面", ++progressCounter, totalSteps);
+
   // ========== 准备素材阶段 ==========
   const newRankField = config.dataFields?.newRank || "new_rank_top10";
   const mainRankField = config.dataFields?.mainRank || "total_rank_top20";

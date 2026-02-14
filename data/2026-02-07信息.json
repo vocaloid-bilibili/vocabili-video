@@ -1,0 +1,15 @@
+{
+  "date": "2026-02-07",
+  "script": {
+    "opening": "欢迎收看二月第一期周刊~本期周刊是今年以来第一个准时的（被打）",
+    "ending": "每一个新的寒暑假都再创佳绩了属于是"
+  },
+  "cover":{
+	  "image_url": "http://i1.hdslb.com/bfs/archive/3affb99abc430a290a379068dc319422201ce932.jpg"
+  },
+  "ed": {
+    "bvid": "BV1wx411c7DG",
+    "name": "透明エレジー",
+    "author": "ナブナ"
+  }
+}
