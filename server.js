@@ -16,14 +16,12 @@ const {
 } = require("./config");
 const apiRoutes = require("./routes/api");
 
-// 确保目录存在
 fs.ensureDirSync(DIR_DATA);
 fs.ensureDirSync(DIR_DOWNLOADS);
 fs.ensureDirSync(DIR_IMAGES);
 fs.ensureDirSync(DIR_VIDEO_ROOT);
 fs.ensureDirSync(DIR_AUDIO_CACHE);
 
-// 启动 Python 分析服务
 let pythonProcess = null;
 
 function startPythonAnalyzer() {
