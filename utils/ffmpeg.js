@@ -3,16 +3,21 @@ const { exec } = require("child_process");
 const path = require("path");
 const fs = require("fs-extra");
 const { log } = require("../state");
-const { USE_NVIDIA } = require("../config")
+const { USE_GPU } = require("../config")
 
 // 编码配置
-const ENCODE_OPTS = "-preset p1 -rc vbr -cq 23 -b:v 6M -maxrate 10M";
-let VIDEO_CODEC = "h264_qsv";
-let HWACCEL = ""
+let VIDEO_CODEC = "libx264";
+let ENCODE_OPTS = "-preset medium -crf 23";
+let HWACCEL = "";
 
-if (USE_NVIDIA == true) {
+if (USE_GPU === "NVIDIA") {
   VIDEO_CODEC = "h264_nvenc";
+  ENCODE_OPTS = "-preset p1 -rc vbr -cq 23 -b:v 6M -maxrate 10M";
   HWACCEL = "-hwaccel cuda";
+}
+else if (USE_GPU === "INTEL") {
+  VIDEO_CODEC = "h264_qsv";
+  ENCODE_OPTS = "-preset fast -b:v 6M -maxrate 10M";
 }
 
 function execPromise(cmd) {

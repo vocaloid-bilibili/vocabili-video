@@ -136,13 +136,13 @@ Segment Repair      - 单分片重绘。删除指定分片并强制重新渲染�
 ```
 PORT=3002
 CHROME_EXECUTABLE=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe;
-USE_NVIDIA=false
+USE_GPU=NVIDIA
 ```
 
 配置项说明：
 * PORT: 前端的端口号，一般就3002即可，如果被占用了的话可以改成别的。
 * CHROME_EXECUTABLE: 你的电脑上Chrome无头浏览器的路径。普通的浏览器也可以，Edge也可以，其他不知道。
-* USE_NVIDIA: FFmpeg后期合成是否使用NVIDIA显卡。填写 true 或 false。
+* USE_GPU: FFmpeg后期合成使用的显卡。填写NVIDIA、INTEL或不填。
 
 ### 系统依赖
 

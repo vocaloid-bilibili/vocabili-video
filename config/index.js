@@ -4,7 +4,7 @@ require("dotenv").config()
 
 const PORT = process.env.PORT;
 const CHROME_EXECUTABLE = process.env.CHROME_EXECUTABLE;
-const USE_NVIDIA = process.env.USE_NVIDIA === "true"
+const USE_GPU = process.env.USE_GPU
 
 const DIR_ROOT = path.resolve(__dirname, "..");
 const DIR_DATA = path.resolve(DIR_ROOT, "data");
