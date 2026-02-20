@@ -131,14 +131,18 @@ Segment Repair      - 单分片重绘。删除指定分片并强制重新渲染�
 
 ### 配置文件
 
-位于 `config/index.js`，必须修改以下项以适配本地环境：
+在项目根目录创建一个 `.env` 文件，内容示例如下：
 
-```javascript
-// Chrome Headless Shell 的绝对路径 (必须)
-const CHROME_EXECUTABLE = `"C:\\path\\to\\chrome-headless-shell.exe"`;
-// 服务端口
-const PORT = 3002;
 ```
+PORT=3002
+CHROME_EXECUTABLE=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe;
+USE_NVIDIA=false
+```
+
+配置项说明：
+* PORT: 前端的端口号，一般就3002即可，如果被占用了的话可以改成别的。
+* CHROME_EXECUTABLE: 你的电脑上Chrome无头浏览器的路径。普通的浏览器也可以，Edge也可以，其他不知道。
+* USE_NVIDIA: FFmpeg后期合成是否使用NVIDIA显卡。填写 true 或 false。
 
 ### 系统依赖
 
@@ -163,7 +167,7 @@ const PORT = 3002;
     ```
 
 3.  **环境检查**:
-    确保 `ffmpeg -version` 无报错且包含 `nvenc`，确保 `config/index.js` 中的 `CHROME_EXECUTABLE` 路径正确。
+    确保 `ffmpeg -version` 无报错且包含 `nvenc`。
 
 4.  **启动服务**:
 
